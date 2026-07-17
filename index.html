@@ -3,10 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmartBet Analytics</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <title>SmartBet Analytics</title><!-- v3 -->
+  <link rel="stylesheet" href="css/style.css?v=3" />
 </head>
 <body>
+  <!-- ===== Ambient background FX ===== -->
+  <div class="bg-fx" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
   <!-- ===== Header ===== -->
   <header class="app-header">
     <div class="brand">
@@ -118,9 +126,9 @@
   </footer>
 
   <!-- Load order: data source → feature modules → page wiring -->
-  <script src="js/api.js"></script>
-  <script src="js/tracker.js"></script>
-  <script src="js/favorites.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/api.js?v=3"></script>
+  <script src="js/tracker.js?v=3"></script>
+  <script src="js/favorites.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>

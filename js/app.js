@@ -54,8 +54,8 @@ function renderGamesList() {
     els.gamesList.innerHTML = `<div class="placeholder-note">No games listed.</div>`;
     return;
   }
-  els.gamesList.innerHTML = state.games.map((g) => `
-    <div class="game-card ${g.live ? "live" : ""}" data-id="${g.id}">
+  els.gamesList.innerHTML = state.games.map((g, idx) => `
+    <div class="game-card anim-in ${g.live ? "live" : ""}" data-id="${g.id}" style="--i:${idx}">
       <div class="gc-time">${g.time}</div>
       <div class="gc-row">
         <span class="gc-team">${g.away.abbr} ${g.away.name}</span>
@@ -85,6 +85,11 @@ function selectGame(id) {
   els.detailEmpty.hidden = true;
   els.gameDetail.hidden = false;
   renderDetail(game);
+
+  // Re-trigger the pop-in animation on every selection
+  els.gameDetail.classList.remove("anim-pop");
+  void els.gameDetail.offsetWidth; // force reflow so the animation restarts
+  els.gameDetail.classList.add("anim-pop");
 }
 
 function teamBlock(t) {
@@ -131,12 +136,17 @@ function renderDetail(g) {
     trCell("Against the Spread", tr.ats) + trCell("Over / Under", tr.ou) +
     trCell("Public Betting", tr.public) + trCell("Line Movement", tr.line);
 
-  // AI placeholder (Phase 6 replaces with real generated text)
+  // AI placeholder (Phase 6 replaces with real generated text).
+  // Words fade in one-by-one via the .ai-word stagger animation.
+  const aiText =
+    `${g.home.name} (${g.home.record}) enter on ${ti.streak.home} with a strong ` +
+    `home split (${ti.homeAway.home}). Key watch: injuries above and the line ` +
+    `move "${tr.line}". This is a demo summary — Phase 6 wires the live AI assistant.`;
   document.getElementById("aiBox").innerHTML =
-    `<strong>${g.home.abbr} favored by the market.</strong> ${g.home.name}
-     (${g.home.record}) enter on ${ti.streak.home} with a strong home split
-     (${ti.homeAway.home}). Key watch: injuries above and the line move
-     "${tr.line}". This is a demo summary — Phase 6 wires the live AI assistant.`;
+    `<strong>${g.home.abbr} favored by the market.</strong> ` +
+    aiText.split(" ")
+      .map((w, i) => `<span class="ai-word" style="--w:${i}">${w}</span>`)
+      .join(" ");
 
   // Favorite button
   updateFavBtn(g);
@@ -144,6 +154,10 @@ function renderDetail(g) {
     Favorites.toggle({ id: g.id, label: `${g.away.abbr} @ ${g.home.abbr}`, sport: state.sport });
     updateFavBtn(g);
     renderFavorites();
+    // Star pop animation
+    els.favBtn.classList.remove("pop");
+    void els.favBtn.offsetWidth;
+    els.favBtn.classList.add("pop");
   };
 }
 
@@ -175,6 +189,17 @@ function renderFavorites() {
     })
   );
 }
+
+/* ---------- Cursor spotlight ---------- */
+// One delegated listener updates --mx/--my on whichever card the mouse is over;
+// CSS paints a radial glow at that point.
+document.addEventListener("mousemove", (e) => {
+  const el = e.target.closest?.(".game-card, .odds-cell, .trend-cell");
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  el.style.setProperty("--my", `${e.clientY - r.top}px`);
+});
 
 /* ---------- Init ---------- */
 function init() {
