@@ -1,0 +1,10 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Never commit secrets (used once you add a backend in Phase 6)
+.env
+.env.*
+secrets.js

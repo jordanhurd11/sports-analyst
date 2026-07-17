@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartBet Analytics</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ===== Header ===== -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">▲</span>
+      <div>
+        <h1>SmartBet Analytics</h1>
+        <p class="tagline">Research smarter. Bet informed.</p>
+      </div>
+    </div>
+    <div class="header-note" id="dataSourceNote">Demo data · Phase 1</div>
+  </header>
+
+  <!-- ===== Sport selector ===== -->
+  <nav class="sport-nav" id="sportNav" aria-label="Select sport">
+    <!-- buttons injected by app.js -->
+  </nav>
+
+  <main class="layout">
+    <!-- ===== Left: games list ===== -->
+    <section class="panel games-panel">
+      <div class="panel-head">
+        <h2>Today's Games</h2>
+        <span class="pill" id="gamesCount">0</span>
+      </div>
+      <div class="games-list" id="gamesList" aria-live="polite">
+        <!-- game cards injected by app.js -->
+      </div>
+    </section>
+
+    <!-- ===== Center: game detail ===== -->
+    <section class="panel detail-panel">
+      <div id="detailEmpty" class="empty-state">
+        <p>Select a game to see the full research breakdown.</p>
+      </div>
+
+      <article id="gameDetail" class="game-detail" hidden>
+        <!-- Matchup header -->
+        <div class="matchup-head">
+          <div class="team-block" id="awayBlock"></div>
+          <div class="vs">
+            <span class="vs-at">@</span>
+            <button class="fav-btn" id="favGameBtn" title="Save matchup">☆</button>
+          </div>
+          <div class="team-block" id="homeBlock"></div>
+        </div>
+
+        <!-- Betting lines -->
+        <div class="detail-section">
+          <h3>Betting Lines <span class="tag">demo</span></h3>
+          <div class="odds-grid" id="oddsGrid"></div>
+        </div>
+
+        <!-- Team info -->
+        <div class="detail-section">
+          <h3>Team Information</h3>
+          <div class="teaminfo-grid" id="teamInfoGrid"></div>
+        </div>
+
+        <!-- Injuries -->
+        <div class="detail-section">
+          <h3>Injury Report</h3>
+          <ul class="injury-list" id="injuryList"></ul>
+        </div>
+
+        <!-- Betting trends -->
+        <div class="detail-section">
+          <h3>Betting Trends</h3>
+          <div class="trends-grid" id="trendsGrid"></div>
+        </div>
+
+        <!-- AI assistant (static placeholder for Phase 6) -->
+        <div class="detail-section">
+          <h3>AI Assistant <span class="tag">preview</span></h3>
+          <div class="ai-box" id="aiBox"></div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ===== Right: tracker + favorites ===== -->
+    <aside class="side-col">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Bet Tracker</h2>
+          <span class="pill" id="trackerRoi">—</span>
+        </div>
+        <div class="placeholder-note">Full tracking (Win %, ROI, streak) arrives in Phase 4.</div>
+        <div class="stat-row">
+          <div class="stat"><span class="stat-val">0</span><span class="stat-label">Bets</span></div>
+          <div class="stat"><span class="stat-val">0%</span><span class="stat-label">Win %</span></div>
+          <div class="stat"><span class="stat-val">0.0u</span><span class="stat-label">Net</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Favorites</h2>
+          <span class="pill" id="favCount">0</span>
+        </div>
+        <div class="favorites-list" id="favoritesList">
+          <div class="placeholder-note">Star a matchup to pin it here (persists in Phase 4).</div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="app-footer">
+    <p>SmartBet Analytics · Final Project · Built with vanilla HTML, CSS &amp; JavaScript</p>
+    <p class="disclaimer">For research &amp; education only. Not betting advice.</p>
+  </footer>
+
+  <!-- Load order: data source → feature modules → page wiring -->
+  <script src="js/api.js"></script>
+  <script src="js/tracker.js"></script>
+  <script src="js/favorites.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
