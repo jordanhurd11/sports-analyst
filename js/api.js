@@ -274,7 +274,8 @@ const SportsAPI = (() => {
     const kickoff = new Date(raw.kickoff);
     const dateStr = String(raw.kickoff || "").slice(0, 10);
     const isFinal = raw.status === "C";
-    const isScheduled = !isFinal && kickoff.getTime() > Date.now();
+    const isScheduled = !isFinal &&
+      (raw.status === "PreMatch" || kickoff.getTime() > Date.now());
     const live = !isFinal && !isScheduled;
 
     let time;
@@ -359,22 +360,36 @@ const SportsAPI = (() => {
     EPL: async () => {
       // EPL is season/week based. Season year flips in August.
       const now = new Date();
-      const season = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-      if (!eplTeamsById) {
+      const current = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+
+      const weekGames = async (season) => {
+        const gJson = await proxyJSON(new URLSearchParams({
+          league: "epl", season: String(season), week: "38", per_page: "100"
+        }));
+        return gJson.data || [];
+      };
+
+      // Prefer the current season's final matchweek; if it has no
+      // completed games yet (mid-season, or stale upstream data),
+      // show last season's title-deciding day instead.
+      let season = current;
+      let games = await weekGames(season);
+      if (!games.some((g) => g.status === "C")) {
+        season = current - 1;
+        games = await weekGames(season);
+      }
+      if (!games.length) throw new Error("no games returned");
+
+      // Team ids → names for the season we actually used (clubs change
+      // between seasons via promotion/relegation)
+      if (!eplTeamsById || eplTeamsById.season !== season) {
         const tJson = await proxyJSON(new URLSearchParams({
           league: "epl", endpoint: "teams",
           season: String(season), per_page: "100"
         }));
-        eplTeamsById = {};
+        eplTeamsById = { season };
         (tJson.data || []).forEach((t) => { eplTeamsById[t.id] = t; });
       }
-      // Matchweek 38 = final day; during the season this is empty and
-      // we fall back to demo (smarter week detection is a stretch goal)
-      const gJson = await proxyJSON(new URLSearchParams({
-        league: "epl", season: String(season), week: "38", per_page: "100"
-      }));
-      const games = gJson.data || [];
-      if (!games.length) throw new Error("no games returned");
       return games.map((g) => adaptEPL(g, eplTeamsById));
     }
   };
