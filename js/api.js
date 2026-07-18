@@ -768,8 +768,8 @@ const SportsAPI = (() => {
       game.away.record = ok(a.overall) || game.away.record;
       game.home.record = ok(h.overall) || game.home.record;
       game.teamInfo = {
-        last5:    { away: ok(a.l10) ? `${a.l10} L10` : "—",
-                    home: ok(h.l10) ? `${h.l10} L10` : "—" },
+        last5:    { away: ok(a.l10) || "—",
+                    home: ok(h.l10) || "—" },
         homeAway: { away: ok(a.road) ? `Road ${a.road}` : "—",
                     home: ok(h.home) ? `Home ${h.home}` : "—" },
         streak:   { away: ok(a.streak) || "—", home: ok(h.streak) || "—" },

@@ -32,7 +32,7 @@ sports-analyst/
 - [x] **Phase 3** — real team records, last-10, home/road splits, streaks & injuries
       via ESPN's public endpoints (unofficial — treated as untrusted, falls back
       to placeholders if unavailable)
-- [ ] **Phase 4** — bet tracker & favorites (localStorage)
+- [x] **Phase 4** — bet tracker (Win %, ROI, units, streak) & favorites, persisted in localStorage
 - [ ] **Phase 5** — betting odds (The Odds API, cached)
 - [ ] **Phase 6** — AI assistant
 - [ ] **Phase 7** — polish & stretch goals

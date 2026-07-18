@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=15" />
 </head>
 <body>
   <!-- ===== Ambient background FX ===== -->
@@ -101,14 +101,22 @@
       <section class="panel">
         <div class="panel-head">
           <h2>Bet Tracker</h2>
-          <span class="pill" id="trackerRoi">—</span>
+          <span class="pill" id="trackerRoi">ROI —</span>
         </div>
-        <div class="placeholder-note">Full tracking (Win %, ROI, streak) arrives in Phase 4.</div>
+        <form id="betForm" class="bet-form" autocomplete="off">
+          <input id="betPick" type="text" placeholder="Pick (e.g. BOS -4.5)" required maxlength="40" />
+          <div class="bet-form-row">
+            <input id="betOdds" type="number" placeholder="Odds (-110)" required step="1" />
+            <input id="betUnits" type="number" placeholder="Units" required min="0.1" step="0.1" />
+          </div>
+          <button type="submit" class="btn-add">+ Log Bet</button>
+        </form>
         <div class="stat-row">
-          <div class="stat"><span class="stat-val">0</span><span class="stat-label">Bets</span></div>
-          <div class="stat"><span class="stat-val">0%</span><span class="stat-label">Win %</span></div>
-          <div class="stat"><span class="stat-val">0.0u</span><span class="stat-label">Net</span></div>
+          <div class="stat"><span class="stat-val" id="statBets">0</span><span class="stat-label">Bets</span></div>
+          <div class="stat"><span class="stat-val" id="statWin">0%</span><span class="stat-label">Win %</span></div>
+          <div class="stat"><span class="stat-val" id="statNet">0.0u</span><span class="stat-label">Net</span></div>
         </div>
+        <div class="bets-list" id="betsList"></div>
       </section>
 
       <section class="panel">
@@ -117,7 +125,7 @@
           <span class="pill" id="favCount">0</span>
         </div>
         <div class="favorites-list" id="favoritesList">
-          <div class="placeholder-note">Star a matchup to pin it here (persists in Phase 4).</div>
+          <div class="placeholder-note">Star a matchup to pin it here.</div>
         </div>
       </section>
     </aside>
@@ -130,9 +138,9 @@
 
   <!-- Load order: public config → data source → features → wiring -->
   <script src="js/config.js?v=11"></script>
-  <script src="js/api.js?v=14"></script>
-  <script src="js/tracker.js?v=11"></script>
-  <script src="js/favorites.js?v=11"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/api.js?v=15"></script>
+  <script src="js/tracker.js?v=15"></script>
+  <script src="js/favorites.js?v=15"></script>
+  <script src="js/app.js?v=15"></script>
 </body>
 </html>

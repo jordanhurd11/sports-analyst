@@ -13,6 +13,15 @@ const els = {
   favBtn:     document.getElementById("favGameBtn"),
   favList:    document.getElementById("favoritesList"),
   favCount:   document.getElementById("favCount"),
+  trackerRoi: document.getElementById("trackerRoi"),
+  betForm:    document.getElementById("betForm"),
+  betPick:    document.getElementById("betPick"),
+  betOdds:    document.getElementById("betOdds"),
+  betUnits:   document.getElementById("betUnits"),
+  statBets:   document.getElementById("statBets"),
+  statWin:    document.getElementById("statWin"),
+  statNet:    document.getElementById("statNet"),
+  betsList:   document.getElementById("betsList"),
 };
 
 const state = { sport: null, games: [], selected: null };
@@ -169,7 +178,7 @@ function renderDetail(g) {
          <span style="color:${dc.home.font}">${g.home.abbr} ${o.home}</span>
        </div></div>`;
   document.getElementById("teamInfoGrid").innerHTML =
-    tiCell("Last 5", ti.last5) + tiCell("Home / Away", ti.homeAway) +
+    tiCell("Last 10", ti.last5) + tiCell("Home / Away", ti.homeAway) +
     tiCell("Streak", ti.streak) + tiCell("Rankings", ti.rank);
 
   // Injuries
@@ -229,7 +238,7 @@ function renderFavorites() {
   els.favCount.textContent = items.length;
   if (!items.length) {
     els.favList.innerHTML =
-      `<div class="placeholder-note">Star a matchup to pin it here (persists in Phase 4).</div>`;
+      `<div class="placeholder-note">Star a matchup to pin it here.</div>`;
     return;
   }
   els.favList.innerHTML = items.map((f) => `
@@ -244,6 +253,74 @@ function renderFavorites() {
       renderFavorites();
     })
   );
+}
+
+/* ---------- Bet tracker ---------- */
+function renderTracker() {
+  const s = BetTracker.stats();
+  els.statBets.textContent = s.count;
+  els.statWin.textContent = `${s.winPct}%`;
+  els.statNet.textContent = `${s.netUnits > 0 ? "+" : ""}${s.netUnits}u`;
+  els.statNet.style.color =
+    s.netUnits > 0 ? "var(--green)" : s.netUnits < 0 ? "var(--danger)" : "";
+  els.trackerRoi.textContent =
+    `ROI ${s.roi > 0 ? "+" : ""}${s.roi}%` + (s.streak ? ` · ${s.streak}` : "");
+
+  const bets = BetTracker.list();
+  if (!bets.length) {
+    els.betsList.innerHTML =
+      `<div class="placeholder-note">Log your first bet above. Everything stays in your browser.</div>`;
+    return;
+  }
+  const resultBtn = (b, r, label) =>
+    `<button class="bi-btn ${r} ${b.result === r ? "on" : ""}"
+             data-id="${b.id}" data-result="${r}" title="Mark ${r}">${label}</button>`;
+  els.betsList.innerHTML = bets.map((b) => {
+    const p = BetTracker.profit(b);
+    const settled = b.result === "win" || b.result === "loss";
+    return `
+    <div class="bet-item ${b.result}">
+      <div class="bi-top">
+        <span class="bi-pick">${b.pick}</span>
+        <span class="bi-net">${settled ? (p > 0 ? "+" : "") + (Math.round(p * 100) / 100) + "u" : ""}</span>
+      </div>
+      <div class="bi-bottom">
+        <span class="bi-meta">${b.sport} · ${b.odds > 0 ? "+" : ""}${b.odds} · ${b.units}u</span>
+        <span class="bi-actions">
+          ${resultBtn(b, "win", "W")}${resultBtn(b, "loss", "L")}${resultBtn(b, "push", "P")}
+          <button class="bi-btn bi-del" data-id="${b.id}" data-del="1" title="Delete">✕</button>
+        </span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function initTracker() {
+  els.betForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const pick = els.betPick.value.trim();
+    const odds = parseInt(els.betOdds.value, 10);
+    const units = parseFloat(els.betUnits.value);
+    if (!pick || !Number.isFinite(odds) || odds === 0 || !(units > 0)) return;
+    BetTracker.add({ sport: state.sport, pick, odds, units });
+    els.betForm.reset();
+    renderTracker();
+  });
+
+  // one delegated handler for result + delete buttons
+  els.betsList.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.del) {
+      BetTracker.remove(btn.dataset.id);
+    } else if (btn.dataset.result) {
+      const bet = BetTracker.list().find((b) => b.id === btn.dataset.id);
+      // clicking the active result un-settles the bet back to pending
+      BetTracker.setResult(btn.dataset.id,
+        bet && bet.result === btn.dataset.result ? "pending" : btn.dataset.result);
+    }
+    renderTracker();
+  });
 }
 
 /* ---------- Cursor spotlight ---------- */
@@ -261,6 +338,8 @@ document.addEventListener("mousemove", (e) => {
 function init() {
   renderSportNav();
   renderFavorites();
+  initTracker();
+  renderTracker();
   selectSport(state.sport);   // load first sport
 }
 document.addEventListener("DOMContentLoaded", init);

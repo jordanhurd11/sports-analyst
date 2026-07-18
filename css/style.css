@@ -579,6 +579,88 @@ body {
 }
 .fav-item button:hover { color: var(--danger); transform: scale(1.2); }
 
+/* ===== Bet tracker ===== */
+.bet-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.bet-form input {
+  width: 100%;
+  background: var(--bg-solid);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color .2s;
+}
+.bet-form input:focus { border-color: var(--accent); }
+.bet-form input::placeholder { color: var(--text-dim); opacity: .7; }
+.bet-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.btn-add {
+  font-family: var(--font-ui);
+  background: linear-gradient(135deg, var(--accent), #00b3d6);
+  color: #021418;
+  border: none;
+  clip-path: var(--chamfer);
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: filter .15s, transform .15s;
+}
+.btn-add:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+.bets-list {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 12px;
+  max-height: 320px; overflow-y: auto;
+}
+.bet-item {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-bright);
+  border-radius: 8px;
+  padding: 8px 10px;
+  animation: fadeUp .3s ease both;
+}
+.bet-item.win  { border-left-color: var(--green); }
+.bet-item.loss { border-left-color: var(--danger); }
+.bet-item.push { border-left-color: var(--warn); }
+.bi-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.bi-pick { font-weight: 600; font-size: 13px; }
+.bi-net {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+}
+.bet-item.win .bi-net { color: var(--green); }
+.bet-item.loss .bi-net { color: var(--danger); }
+.bi-bottom {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 5px; gap: 8px;
+}
+.bi-meta {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase;
+}
+.bi-actions { display: flex; gap: 4px; }
+.bi-btn {
+  font-family: var(--font-mono);
+  background: var(--bg-solid);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-dim);
+  font-size: 10px; font-weight: 700;
+  width: 22px; height: 20px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.bi-btn.win.on  { color: var(--green);  border-color: var(--green); }
+.bi-btn.loss.on { color: var(--danger); border-color: var(--danger); }
+.bi-btn.push.on { color: var(--warn);   border-color: var(--warn); }
+.bi-btn:hover { color: var(--text); border-color: var(--border-bright); }
+.bi-del:hover { color: var(--danger); border-color: var(--danger); }
+
 /* ===== Footer ===== */
 .app-footer {
   text-align: center; padding: 26px; margin-top: 20px;
