@@ -579,6 +579,28 @@ body {
 }
 .fav-item button:hover { color: var(--danger); transform: scale(1.2); }
 
+/* ===== AI assistant form ===== */
+.ai-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ai-form input {
+  width: 100%;
+  background: var(--bg-solid);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color .2s;
+}
+.ai-form input:focus { border-color: var(--blue, var(--accent)); }
+.ai-form input::placeholder { color: var(--text-dim); opacity: .7; }
+
 /* ===== Bet tracker ===== */
 .bet-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .bet-form input {

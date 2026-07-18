@@ -34,7 +34,7 @@ sports-analyst/
       to placeholders if unavailable)
 - [x] **Phase 4** — bet tracker (Win %, ROI, units, streak) & favorites, persisted in localStorage
 - [x] **Phase 5** — live betting lines (spread/moneyline/total) via The Odds API, cached hard
-- [ ] **Phase 6** — AI assistant
+- [x] **Phase 6** — AI assistant (Google Gemini free tier, key server-side)
 - [ ] **Phase 7** — polish & stretch goals
 
 ## 🔑 API keys — all server-side on Vercel
@@ -46,6 +46,7 @@ own serverless proxy (`/api/*`); the proxy attaches the key from a Vercel
 |---------------|---------------------|------------|
 | `api/games.js`| balldontlie (NBA)   | `BDL_KEY`  |
 | `api/odds.js` | The Odds API        | `ODDS_KEY` |
+| `api/ai.js`   | Google Gemini       | `GEMINI_KEY` |
 
 ### Deploy steps
 1. Push this repo to GitHub.

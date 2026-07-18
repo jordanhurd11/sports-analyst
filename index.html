@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=15" />
+  <link rel="stylesheet" href="css/style.css?v=17" />
 </head>
 <body>
   <!-- ===== Ambient background FX ===== -->
@@ -88,10 +88,15 @@
           <div class="trends-grid" id="trendsGrid"></div>
         </div>
 
-        <!-- AI assistant (static placeholder for Phase 6) -->
+        <!-- AI assistant (Gemini via /api/ai) -->
         <div class="detail-section">
-          <h3>AI Assistant <span class="tag">preview</span></h3>
+          <h3>AI Assistant <span class="tag" id="aiTag">gemini</span></h3>
           <div class="ai-box" id="aiBox"></div>
+          <form id="aiForm" class="ai-form" autocomplete="off">
+            <input id="aiInput" type="text" maxlength="300"
+                   placeholder="Ask about this matchup — injuries, form, the line…" />
+            <button type="submit" class="btn-add">Ask</button>
+          </form>
         </div>
       </article>
     </section>
@@ -141,6 +146,6 @@
   <script src="js/api.js?v=16"></script>
   <script src="js/tracker.js?v=15"></script>
   <script src="js/favorites.js?v=15"></script>
-  <script src="js/app.js?v=16"></script>
+  <script src="js/app.js?v=17"></script>
 </body>
 </html>

@@ -257,6 +257,69 @@ function renderFavorites() {
   );
 }
 
+/* ---------- AI assistant ---------- */
+// Compile everything on screen about the selected game into plain text
+// for the model. No secrets here — it's the same data the user sees.
+function buildGameContext(g) {
+  if (!g) return "";
+  const ti = g.teamInfo, tr = g.trends;
+  const inj = g.injuries.length
+    ? g.injuries.map((i) => `${i.status} ${i.player} (${i.team})`).join("; ")
+    : "none reported";
+  return [
+    `Sport: ${state.sport}. ${g.away.abbr} ${g.away.name} (${g.away.record}) at ` +
+      `${g.home.abbr} ${g.home.name} (${g.home.record}). Status: ${g.time}.`,
+    g.away.score != null ? `Score: ${g.away.abbr} ${g.away.score} — ${g.home.abbr} ${g.home.score}.` : "",
+    `Lines: spread ${g.odds.spread}, moneyline ${g.odds.moneyline}, total ${g.odds.total}` +
+      `${g.oddsLive ? " (live market)" : " (no live market)"}.`,
+    `Last 10: ${g.away.abbr} ${ti.last5.away}, ${g.home.abbr} ${ti.last5.home}.`,
+    `Splits: ${g.away.abbr} ${ti.homeAway.away}, ${g.home.abbr} ${ti.homeAway.home}.`,
+    `Streaks: ${g.away.abbr} ${ti.streak.away}, ${g.home.abbr} ${ti.streak.home}.`,
+    `Rankings: ${g.away.abbr} ${ti.rank.away}, ${g.home.abbr} ${ti.rank.home}.`,
+    `Injuries: ${inj}.`,
+    `Trends: ATS ${tr.ats}; O/U ${tr.ou}; public ${tr.public}; line move ${tr.line}.`
+  ].filter(Boolean).join("\n");
+}
+
+function renderAiText(text) {
+  document.getElementById("aiBox").innerHTML = text
+    .split(" ")
+    .map((w, i) => `<span class="ai-word" style="--w:${i}">${w
+      .replaceAll("&", "&amp;").replaceAll("<", "&lt;")}</span>`)
+    .join(" ");
+}
+
+function initAssistant() {
+  const form = document.getElementById("aiForm");
+  const input = document.getElementById("aiInput");
+  const tag = document.getElementById("aiTag");
+  const proxy = window.SMARTBET_CONFIG?.proxyBase || "";
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const question = input.value.trim();
+    if (!question || !state.selected || !proxy) return;
+    const box = document.getElementById("aiBox");
+    box.innerHTML = `<em style="color:var(--text-dim)">Thinking…</em>`;
+    try {
+      const res = await fetch(`${proxy}/ai`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, context: buildGameContext(state.selected) })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      renderAiText(json.text);
+      tag.textContent = "live";
+      input.value = "";
+    } catch (err) {
+      tag.textContent = "offline";
+      box.innerHTML = `<em style="color:var(--text-dim)">The assistant is unavailable right now` +
+        `${/429|quota|rate/i.test(err.message) ? " (free-tier rate limit — try again in a minute)" : ""}.</em>`;
+    }
+  });
+}
+
 /* ---------- Bet tracker ---------- */
 function renderTracker() {
   const s = BetTracker.stats();
@@ -342,6 +405,7 @@ function init() {
   renderFavorites();
   initTracker();
   renderTracker();
+  initAssistant();
   selectSport(state.sport);   // load first sport
 }
 document.addEventListener("DOMContentLoaded", init);
