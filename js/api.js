@@ -155,8 +155,49 @@ const SportsAPI = (() => {
     WOL: { font: "#FDB913", g1: "#FDB913", g2: "#231F20" }
   };
 
+  const NHL_COLORS = {
+    ANA: { font: "#F47A38", g1: "#F47A38", g2: "#B9975B" },
+    BOS: { font: "#FFB81C", g1: "#1A1A1A", g2: "#FFB81C" },
+    BUF: { font: "#4D82C8", g1: "#003087", g2: "#FFB81C" },
+    CAR: { font: "#E0453F", g1: "#CE1126", g2: "#A2AAAD" },
+    CBJ: { font: "#7C9BD4", g1: "#002654", g2: "#CE1126" },
+    CGY: { font: "#E0453F", g1: "#D2001C", g2: "#FAAF19" },
+    CHI: { font: "#E0453F", g1: "#CF0A2C", g2: "#FF671B" },
+    COL: { font: "#D75A74", g1: "#6F263D", g2: "#236192" },
+    DAL: { font: "#2FA36B", g1: "#006847", g2: "#8F8F8C" },
+    DET: { font: "#E0453F", g1: "#CE1126", g2: "#C4CED4" },
+    EDM: { font: "#FF4C00", g1: "#041E42", g2: "#FF4C00" },
+    FLA: { font: "#E0453F", g1: "#C8102E", g2: "#B9975B" },
+    LA:  { font: "#A2AAAD", g1: "#111111", g2: "#A2AAAD" },
+    LAK: { font: "#A2AAAD", g1: "#111111", g2: "#A2AAAD" },
+    MIN: { font: "#2FA36B", g1: "#154734", g2: "#A6192E" },
+    MTL: { font: "#E0453F", g1: "#AF1E2D", g2: "#192168" },
+    NJ:  { font: "#E0453F", g1: "#CE1126", g2: "#1A1A1A" },
+    NJD: { font: "#E0453F", g1: "#CE1126", g2: "#1A1A1A" },
+    NSH: { font: "#FFB81C", g1: "#041E42", g2: "#FFB81C" },
+    NYI: { font: "#F47D30", g1: "#00539B", g2: "#F47D30" },
+    NYR: { font: "#4D82C8", g1: "#0038A8", g2: "#CE1126" },
+    OTT: { font: "#E0453F", g1: "#DA1A32", g2: "#B79257" },
+    PHI: { font: "#F74902", g1: "#F74902", g2: "#1A1A1A" },
+    PIT: { font: "#FCB514", g1: "#1A1A1A", g2: "#FCB514" },
+    SEA: { font: "#99D9D9", g1: "#001628", g2: "#99D9D9" },
+    SJ:  { font: "#1FB0BC", g1: "#006D75", g2: "#EA7200" },
+    SJS: { font: "#1FB0BC", g1: "#006D75", g2: "#EA7200" },
+    STL: { font: "#4D82C8", g1: "#002F87", g2: "#FCB514" },
+    TB:  { font: "#4D82C8", g1: "#002868", g2: "#C4CED4" },
+    TBL: { font: "#4D82C8", g1: "#002868", g2: "#C4CED4" },
+    TOR: { font: "#4D82C8", g1: "#00205B", g2: "#C4CED4" },
+    UTA: { font: "#71AFE5", g1: "#101820", g2: "#69B3E7" },
+    UTAH:{ font: "#71AFE5", g1: "#101820", g2: "#69B3E7" },
+    VAN: { font: "#4D82C8", g1: "#00205B", g2: "#00843D" },
+    VGK: { font: "#C9B37E", g1: "#B4975A", g2: "#333F42" },
+    WPG: { font: "#7C9BD4", g1: "#041E42", g2: "#AC162C" },
+    WSH: { font: "#E0453F", g1: "#C8102E", g2: "#041E42" }
+  };
+
   const LEAGUE_COLORS = {
-    NBA: NBA_COLORS, NFL: NFL_COLORS, MLB: MLB_COLORS, EPL: EPL_COLORS
+    NBA: NBA_COLORS, NFL: NFL_COLORS, MLB: MLB_COLORS,
+    NHL: NHL_COLORS, EPL: EPL_COLORS
   };
 
   function teamColors(sport, abbr) {
@@ -224,6 +265,7 @@ const SportsAPI = (() => {
 
     return {
       id: `${sport.toLowerCase()}-${raw.id}`,
+      src: "live",
       time, live,
       away: team(raw.visitor_team, raw.visitor_team_score),
       home: team(raw.home_team, raw.home_team_score),
@@ -261,6 +303,7 @@ const SportsAPI = (() => {
 
     return {
       id: `mlb-${raw.id}`,
+      src: "live",
       time, live,
       away: team(raw.away_team, raw.away_team_data),
       home: team(raw.home_team, raw.home_team_data),
@@ -300,9 +343,52 @@ const SportsAPI = (() => {
 
     return {
       id: `epl-${raw.id}`,
+      src: "live",
       time, live,
       away: team(raw.away_team_id, raw.away_score),
       home: team(raw.home_team_id, raw.home_score),
+      ...placeholderExtras()
+    };
+  }
+
+  /* ESPN scoreboard event → our game shape (used for NHL) */
+  function adaptESPNEvent(ev, sport) {
+    const comp = (ev.competitions || [])[0] || {};
+    const competitors = comp.competitors || [];
+    const homeC = competitors.find((c) => c.homeAway === "home") || {};
+    const awayC = competitors.find((c) => c.homeAway === "away") || {};
+    const st = ev.status?.type || {};
+    const isFinal = st.state === "post";
+    const isScheduled = st.state === "pre";
+    const live = st.state === "in";
+    const dateStr = String(ev.date || "").slice(0, 10);
+
+    let time;
+    if (isFinal) {
+      time = `FINAL · ${dateStr}`;
+    } else if (live) {
+      time = `LIVE · ${st.detail || ""}`;
+    } else {
+      const d = new Date(ev.date);
+      time = isNaN(d)
+        ? dateStr
+        : `${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${dateStr}`;
+    }
+
+    const team = (c) => ({
+      abbr: c.team?.abbreviation || "?",
+      name: c.team?.shortDisplayName || c.team?.displayName || "?",
+      record: (c.records || [])[0]?.summary || "",
+      score: (isFinal || live) ? Number(c.score) : null,
+      colors: teamColors(sport, c.team?.abbreviation)
+    });
+
+    return {
+      id: `${sport.toLowerCase()}-espn-${ev.id}`,
+      src: "live",
+      time, live,
+      away: team(awayC),
+      home: team(homeC),
       ...placeholderExtras()
     };
   }
@@ -350,13 +436,31 @@ const SportsAPI = (() => {
       recentDates(7), // in-season: last week always has games
       adaptMLB
     ),
-    NHL: () => fetchByDates(
-      "nhl",
-      // balldontlie NHL needs a paid tier — this 401s on free keys and
-      // falls back to demo. Ready if the key is ever upgraded.
-      [...recentDates(3), "2026-06-05", "2026-06-08", "2026-06-10"],
-      (g) => adaptVH(g, "NHL")
-    ),
+    NHL: async () => {
+      // balldontlie's NHL needs a paid tier, so NHL comes from ESPN's
+      // scoreboard instead. Try the last 10 days; if the offseason is
+      // empty, fall back to the most recent Stanley Cup Final window.
+      const ymd = (d) => iso(d).replace(/-/g, "");
+      const now = new Date();
+      const back = new Date(); back.setDate(back.getDate() - 10);
+      const ranges = [`${ymd(back)}-${ymd(now)}`];
+      const year = now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear();
+      ranges.push(`${year}0520-${year}0701`);
+
+      for (const dates of ranges) {
+        const res = await fetch(`${PROXY}/espn?league=nhl&type=scoreboard&dates=${dates}`);
+        if (!res.ok) continue;
+        const json = await res.json();
+        const events = json.events || [];
+        if (!events.length) continue;
+        // keep only the most recent day that has games
+        const latest = events.map((e) => String(e.date).slice(0, 10)).sort().pop();
+        return events
+          .filter((e) => String(e.date).slice(0, 10) === latest)
+          .map((e) => adaptESPNEvent(e, "NHL"));
+      }
+      throw new Error("no games returned");
+    },
     EPL: async () => {
       // EPL is season/week based. Season year flips in August.
       const now = new Date();
@@ -565,6 +669,132 @@ const SportsAPI = (() => {
   const SPORTS = ["NBA", "NFL", "MLB", "NHL", "EPL"];
 
   /* =================================================================
+     PHASE 3 — ENRICHMENT (ESPN standings + injuries via our proxy)
+     Fetched lazily on first game click per league, then cached.
+     ESPN is unofficial: every step here fails soft back to
+     placeholders if the shape ever changes.
+     ================================================================= */
+  const enrichCache = {};
+
+  function statOf(entry, wanted) {
+    const stats = entry.stats || [];
+    for (const key of wanted) {
+      const s = stats.find((x) =>
+        (x.type || "").toLowerCase() === key ||
+        (x.name || "").toLowerCase() === key ||
+        (x.abbreviation || "").toLowerCase() === key);
+      if (s) return s.summary ?? s.displayValue ?? s.value;
+    }
+    return null;
+  }
+
+  async function loadEnrichment(sport) {
+    const league = sport.toLowerCase();
+    const grab = (type) =>
+      fetch(`${PROXY}/espn?league=${league}&type=${type}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+
+    const [standingsJson, injuriesJson] = await Promise.all([
+      grab("standings"), grab("injuries")
+    ]);
+
+    // Standings: conferences (or the root itself) → entries
+    const teams = [];
+    try {
+      const groups = standingsJson?.children?.length
+        ? standingsJson.children : (standingsJson ? [standingsJson] : []);
+      groups.forEach((g) => {
+        (g.standings?.entries || []).forEach((e) => {
+          teams.push({
+            name: (e.team?.displayName || "").toLowerCase(),
+            abbr: e.team?.abbreviation || "",
+            overall: statOf(e, ["total", "overall"]),
+            home:    statOf(e, ["home"]),
+            road:    statOf(e, ["road", "away", "vs. road"]),
+            streak:  statOf(e, ["streak"]),
+            l10:     statOf(e, ["lasttengames", "last ten games"]),
+            rank:    statOf(e, ["rank", "playoffseed", "seed"]),
+            points:  statOf(e, ["points"])
+          });
+        });
+      });
+    } catch { /* shape changed — leave teams empty */ }
+
+    // Injuries: per-team athlete lists
+    const injuries = [];
+    try {
+      (injuriesJson?.injuries || []).forEach((t) => {
+        injuries.push({
+          name: (t.displayName || "").toLowerCase(),
+          list: (t.injuries || []).map((i) => ({
+            player: i.athlete?.displayName ||
+                    [i.athlete?.firstName, i.athlete?.lastName].filter(Boolean).join(" "),
+            status: i.status || "—",
+            part: i.details?.type || ""
+          }))
+        });
+      });
+    } catch { /* shape changed */ }
+
+    return { teams, injuries };
+  }
+
+  function getEnrichment(sport) {
+    if (!enrichCache[sport]) enrichCache[sport] = loadEnrichment(sport);
+    return enrichCache[sport];
+  }
+
+  /* Match "Warriors" / "GSW" against ESPN's "Golden State Warriors" */
+  function matchTeam(rows, team) {
+    const nick = (team.name || "").toLowerCase();
+    const abbr = (team.abbr || "").toUpperCase();
+    return rows.find((r) => r.abbr === abbr) ||
+           rows.find((r) => nick && r.name.endsWith(nick)) ||
+           rows.find((r) => nick && r.name.includes(nick)) || null;
+  }
+
+  /* Fill a live game's placeholders with real standings + injuries.
+     Mutates and returns the game; safe to call more than once. */
+  async function enrichGame(sport, game) {
+    if (!PROXY || game.enriched || game.src !== "live") return game;
+    const enr = await getEnrichment(sport);
+
+    const a = matchTeam(enr.teams, game.away);
+    const h = matchTeam(enr.teams, game.home);
+    const ok = (v) => v && v !== "0-0-0" ? v : null; // all-zero = offseason table
+
+    if (a && h) {
+      game.away.record = ok(a.overall) || game.away.record;
+      game.home.record = ok(h.overall) || game.home.record;
+      game.teamInfo = {
+        last5:    { away: ok(a.l10) ? `${a.l10} L10` : "—",
+                    home: ok(h.l10) ? `${h.l10} L10` : "—" },
+        homeAway: { away: ok(a.road) ? `Road ${a.road}` : "—",
+                    home: ok(h.home) ? `Home ${h.home}` : "—" },
+        streak:   { away: ok(a.streak) || "—", home: ok(h.streak) || "—" },
+        rank:     { away: a.rank ? `Seed #${a.rank}` : "—",
+                    home: h.rank ? `Seed #${h.rank}` : "—" }
+      };
+    }
+
+    const injuriesFor = (team) => {
+      const row = matchTeam(enr.injuries, team);
+      return (row?.list || []).slice(0, 4).map((i) => ({
+        player: i.part ? `${i.player} (${i.part})` : i.player,
+        team: team.abbr,
+        status: i.status,
+        cls: /out|injured reserve|^ir$/i.test(i.status) ? "inj-out" : "inj-qb"
+      }));
+    };
+    const inj = [...injuriesFor(game.away), ...injuriesFor(game.home)];
+    if (inj.length) game.injuries = inj;
+
+    game.enriched = true;
+    return game;
+  }
+
+  /* =================================================================
      PUBLIC API
      ================================================================= */
   async function getGames(sport) {
@@ -603,5 +833,5 @@ const SportsAPI = (() => {
     return lastSource;
   }
 
-  return { getSports, getGames, getSource };
+  return { getSports, getGames, getSource, enrichGame };
 })();

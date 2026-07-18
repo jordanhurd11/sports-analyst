@@ -28,8 +28,10 @@ sports-analyst/
 ## Build phases
 - [x] **Phase 0** — repo + GitHub Pages pipeline
 - [x] **Phase 1** — layout shell driven by fake data
-- [x] **Phase 2** — real NBA scores & schedule via balldontlie (NFL/MLB/NHL still demo)
-- [ ] **Phase 3** — team & player info + injuries
+- [x] **Phase 2** — real scores & schedules: NBA/NFL/MLB/EPL via balldontlie, NHL via ESPN
+- [x] **Phase 3** — real team records, last-10, home/road splits, streaks & injuries
+      via ESPN's public endpoints (unofficial — treated as untrusted, falls back
+      to placeholders if unavailable)
 - [ ] **Phase 4** — bet tracker & favorites (localStorage)
 - [ ] **Phase 5** — betting odds (The Odds API, cached)
 - [ ] **Phase 6** — AI assistant

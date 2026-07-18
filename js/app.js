@@ -125,6 +125,12 @@ function selectGame(id) {
   els.gameDetail.classList.remove("anim-pop");
   void els.gameDetail.offsetWidth; // force reflow so the animation restarts
   els.gameDetail.classList.add("anim-pop");
+
+  // Phase 3: pull real standings + injuries in the background, then
+  // re-render if this game is still the one on screen
+  SportsAPI.enrichGame(state.sport, game).then((g) => {
+    if (state.selected && state.selected.id === g.id) renderDetail(g);
+  }).catch(() => { /* enrichment is best-effort */ });
 }
 
 function teamBlock(t) {
