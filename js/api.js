@@ -784,7 +784,7 @@ const SportsAPI = (() => {
         player: i.part ? `${i.player} (${i.part})` : i.player,
         team: team.abbr,
         status: i.status,
-        cls: /out|injured reserve|^ir$/i.test(i.status) ? "inj-out" : "inj-qb"
+        cls: /out|injured reserve|-il\b|^ir$/i.test(i.status) ? "inj-out" : "inj-qb"
       }));
     };
     const inj = [...injuriesFor(game.away), ...injuriesFor(game.home)];
