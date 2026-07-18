@@ -38,15 +38,19 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: `unsupported league: ${league}` });
   }
 
-  // forward everything except our own `league` param
+  // games (default) or teams — nothing else is proxied
+  const endpoint = (req.query && req.query.endpoint) === "teams" ? "teams" : "games";
+
+  // forward everything except our own params
   const params = new URLSearchParams(
     req.url.includes("?") ? req.url.slice(req.url.indexOf("?") + 1) : ""
   );
   params.delete("league");
+  params.delete("endpoint");
 
   try {
     const upstream = await fetch(
-      `https://api.balldontlie.io/${path}/games?${params}`,
+      `https://api.balldontlie.io/${path}/${endpoint}?${params}`,
       { headers: { Authorization: key } }
     );
     const body = await upstream.json();
