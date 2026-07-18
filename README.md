@@ -33,7 +33,7 @@ sports-analyst/
       via ESPN's public endpoints (unofficial — treated as untrusted, falls back
       to placeholders if unavailable)
 - [x] **Phase 4** — bet tracker (Win %, ROI, units, streak) & favorites, persisted in localStorage
-- [ ] **Phase 5** — betting odds (The Odds API, cached)
+- [x] **Phase 5** — live betting lines (spread/moneyline/total) via The Odds API, cached hard
 - [ ] **Phase 6** — AI assistant
 - [ ] **Phase 7** — polish & stretch goals
 

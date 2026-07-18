@@ -13,7 +13,8 @@ const ALLOWED_SPORTS = new Set([
   "basketball_nba",
   "americanfootball_nfl",
   "baseball_mlb",
-  "icehockey_nhl"
+  "icehockey_nhl",
+  "soccer_epl"
 ]);
 
 module.exports = async (req, res) => {

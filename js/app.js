@@ -163,7 +163,9 @@ function renderDetail(g) {
   els.gameDetail.style.setProperty("--away-t", tint(dc.away.g1, 0.18));
   els.gameDetail.style.setProperty("--home-t", tint(dc.home.g1, 0.18));
 
-  // Odds
+  // Odds — tag reflects where the lines came from
+  document.getElementById("oddsTag").textContent =
+    g.oddsLive ? "live" : (g.src === "live" ? "no market" : "demo");
   document.getElementById("oddsGrid").innerHTML = `
     <div class="odds-cell"><div class="oc-label">Spread</div><div class="oc-val">${g.odds.spread}</div></div>
     <div class="odds-cell"><div class="oc-label">Moneyline</div><div class="oc-val" style="font-size:13px">${g.odds.moneyline}</div></div>

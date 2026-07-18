@@ -745,6 +745,82 @@ const SportsAPI = (() => {
     return enrichCache[sport];
   }
 
+  /* ---- Phase 5: live betting lines (The Odds API via our proxy) ----
+     One fetch per sport per session; the proxy CDN-caches 10 min on
+     top of that to protect the 500 credits/month free tier. */
+  const ODDS_SPORT_KEYS = {
+    NBA: "basketball_nba",
+    NFL: "americanfootball_nfl",
+    MLB: "baseball_mlb",
+    NHL: "icehockey_nhl",
+    EPL: "soccer_epl"
+  };
+  const oddsCache = {};
+
+  function getOdds(sport) {
+    const key = ODDS_SPORT_KEYS[sport];
+    if (!key) return Promise.resolve([]);
+    if (!oddsCache[sport]) {
+      oddsCache[sport] = fetch(`${PROXY}/odds?sport=${key}`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((j) => (Array.isArray(j) ? j : []))
+        .catch(() => []);
+    }
+    return oddsCache[sport];
+  }
+
+  /* Apply live market lines to a game if a bookmaker offers them.
+     Odds events use full team names ("Boston Red Sox") — match on
+     our nicknames. Games that are finished or offseason simply have
+     no market, which is correct: odds stay "—". */
+  async function applyOdds(sport, game) {
+    const events = await getOdds(sport);
+    const nickA = (game.away.name || "").toLowerCase();
+    const nickH = (game.home.name || "").toLowerCase();
+    const ev = events.find((e) =>
+      (e.home_team || "").toLowerCase().includes(nickH) &&
+      (e.away_team || "").toLowerCase().includes(nickA));
+    if (!ev) return;
+
+    // not every bookmaker carries every market — search them all
+    const market = (key) => {
+      for (const b of ev.bookmakers || []) {
+        const m = (b.markets || []).find((x) => x.key === key);
+        if (m && m.outcomes?.length) return m;
+      }
+      return null;
+    };
+    const fmt = (p) => (p > 0 ? `+${p}` : `${p}`);
+    const odds = { spread: "—", moneyline: "—", total: "—" };
+
+    const h2h = market("h2h");
+    if (h2h) {
+      const ao = h2h.outcomes.find((o) => o.name === ev.away_team);
+      const ho = h2h.outcomes.find((o) => o.name === ev.home_team);
+      if (ao && ho) {
+        odds.moneyline = `${game.away.abbr} ${fmt(ao.price)} / ${game.home.abbr} ${fmt(ho.price)}`;
+      }
+    }
+    const spreads = market("spreads");
+    if (spreads) {
+      const fav = spreads.outcomes.find((o) => o.point < 0) || spreads.outcomes[0];
+      if (fav && fav.point != null) {
+        const abbr = fav.name === ev.home_team ? game.home.abbr : game.away.abbr;
+        odds.spread = `${abbr} ${fav.point > 0 ? "+" : ""}${fav.point}`;
+      }
+    }
+    const totals = market("totals");
+    if (totals) {
+      const over = totals.outcomes.find((o) => o.name === "Over");
+      if (over && over.point != null) odds.total = `O/U ${over.point}`;
+    }
+
+    if (odds.moneyline !== "—" || odds.spread !== "—" || odds.total !== "—") {
+      game.odds = odds;
+      game.oddsLive = true;
+    }
+  }
+
   /* Match "Warriors" / "GSW" against ESPN's "Golden State Warriors" */
   function matchTeam(rows, team) {
     const nick = (team.name || "").toLowerCase();
@@ -758,7 +834,10 @@ const SportsAPI = (() => {
      Mutates and returns the game; safe to call more than once. */
   async function enrichGame(sport, game) {
     if (!PROXY || game.enriched || game.src !== "live") return game;
-    const enr = await getEnrichment(sport);
+    const [enr] = await Promise.all([
+      getEnrichment(sport),
+      applyOdds(sport, game).catch(() => {})
+    ]);
 
     const a = matchTeam(enr.teams, game.away);
     const h = matchTeam(enr.teams, game.home);
