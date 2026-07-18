@@ -4,7 +4,8 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Never commit secrets (used once you add a backend in Phase 6)
+# Never commit secrets
 .env
 .env.*
 secrets.js
+js/keys.js
