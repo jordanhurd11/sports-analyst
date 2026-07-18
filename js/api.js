@@ -1,25 +1,19 @@
 /* ===================================================================
    api.js  —  SINGLE source of data for the whole app.
    -------------------------------------------------------------------
-   PHASE 2: NBA games come LIVE from balldontlie.io when an API key
-            is present. Everything else (NFL/MLB/NHL) and any error
-            path falls back to the demo dataset below.
+   PHASE 2: NBA games come LIVE through our Vercel proxy
+            (/api/games), which holds the balldontlie key in a
+            server-side environment variable. No key ever reaches
+            the browser or this repo. Everything else (NFL/MLB/NHL)
+            and any error path falls back to the demo dataset below.
 
-   API key resolution order (see README):
-     1. localStorage  ("smartbet.key.balldontlie") — set via the
-        status chip in the header, never touches the repo
-     2. window.SMARTBET_KEYS.balldontlie — from js/keys.js, which is
-        GITIGNORED (copy js/keys.example.js to js/keys.js locally)
-     3. none → demo mode
-
-   ⚠️  Anything committed in this repo ships publicly on GitHub Pages.
-       Never paste a real key into THIS file or keys.example.js.
+   Proxy location comes from js/config.js (public, committed).
    =================================================================== */
 
 const SportsAPI = (() => {
 
-  const BDL_BASE = "https://api.balldontlie.io/v1";
-  const KEY_STORAGE = "smartbet.key.balldontlie";
+  const PROXY = (typeof window !== "undefined" &&
+                 window.SMARTBET_CONFIG?.proxyBase) || "";
 
   /* What the header chip should say after the last getGames() call */
   let lastSource = "DEMO DATA";
@@ -62,24 +56,6 @@ const SportsAPI = (() => {
     WAS: { font: "#E31837", g1: "#002B5C", g2: "#E31837" }
   };
   const DEFAULT_COLORS = { font: "#DBE7F4", g1: "#31404F", g2: "#7D8DA1" };
-
-  /* ---- API key management -----------------------------------------
-     Stored key wins; js/keys.js (gitignored) is the fallback. */
-  function getKey() {
-    try {
-      const stored = localStorage.getItem(KEY_STORAGE);
-      if (stored) return stored;
-    } catch { /* localStorage unavailable */ }
-    return (typeof window !== "undefined" && window.SMARTBET_KEYS?.balldontlie) || null;
-  }
-
-  function setKey(key) {
-    try {
-      if (key) localStorage.setItem(KEY_STORAGE, key);
-      else localStorage.removeItem(KEY_STORAGE);
-    } catch { /* ignore */ }
-    delete cache.NBA; // force a refetch with the new key
-  }
 
   /* ---- balldontlie → our game shape -------------------------------
      Missing free-tier fields (odds/trends/injuries/records) stay as
@@ -155,13 +131,12 @@ const SportsAPI = (() => {
     return days;
   }
 
-  async function fetchNBA(key) {
+  async function fetchNBA() {
     const params = new URLSearchParams({ per_page: "100" });
     candidateDates().forEach((d) => params.append("dates[]", d));
-    const res = await fetch(`${BDL_BASE}/games?${params}`, {
-      headers: { Authorization: key }
-    });
-    if (!res.ok) throw new Error(`balldontlie HTTP ${res.status}`);
+    // No key here — the Vercel function attaches it server-side
+    const res = await fetch(`${PROXY}/games?${params}`);
+    if (!res.ok) throw new Error(`proxy HTTP ${res.status}`);
     const json = await res.json();
     const games = json.data || [];
     if (!games.length) throw new Error("no games returned");
@@ -314,27 +289,22 @@ const SportsAPI = (() => {
 
   /* ---- Public API -------------------------------------------------- */
   async function getGames(sport) {
-    // Live path: NBA + key present
-    if (sport === "NBA") {
-      const key = getKey();
-      if (key) {
-        if (cache.NBA) {
-          lastSource = "LIVE · BALLDONTLIE";
-          return cache.NBA;
-        }
-        try {
-          const games = await fetchNBA(key);
-          cache.NBA = games;
-          lastSource = "LIVE · BALLDONTLIE";
-          return games;
-        } catch (err) {
-          console.warn("balldontlie fetch failed, using demo data:", err.message);
-          lastSource = "DEMO · API ERROR";
-          return [...FAKE.NBA];
-        }
+    // Live path: NBA through the Vercel proxy
+    if (sport === "NBA" && PROXY) {
+      if (cache.NBA) {
+        lastSource = "LIVE · NBA";
+        return cache.NBA;
       }
-      lastSource = "DEMO · CLICK TO ADD KEY";
-      return [...FAKE.NBA];
+      try {
+        const games = await fetchNBA();
+        cache.NBA = games;
+        lastSource = "LIVE · NBA";
+        return games;
+      } catch (err) {
+        console.warn("proxy fetch failed, using demo data:", err.message);
+        lastSource = "DEMO · API OFFLINE";
+        return [...FAKE.NBA];
+      }
     }
 
     // Other sports stay demo until their APIs are wired up
@@ -352,5 +322,5 @@ const SportsAPI = (() => {
     return lastSource;
   }
 
-  return { getSports, getGames, getSource, getKey, setKey };
+  return { getSports, getGames, getSource };
 })();

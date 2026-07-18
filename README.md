@@ -35,23 +35,31 @@ sports-analyst/
 - [ ] **Phase 6** — AI assistant
 - [ ] **Phase 7** — polish & stretch goals
 
-## 🔑 API key setup (balldontlie — live NBA data)
-1. Create a free account at **https://app.balldontlie.io** — your API key is
-   shown on the dashboard after signup. No credit card needed.
-2. Add the key one of two ways:
-   - **Browser (recommended):** open the site and click the status chip in the
-     top-right header. Paste the key. It's stored in your browser's
-     localStorage — it never touches the repo or the deployed files.
-   - **Local file:** copy `js/keys.example.js` to `js/keys.js` and paste the
-     key there. `js/keys.js` is gitignored and will never be committed.
-3. Without a key the site runs in demo mode with sample data.
+## 🔑 API keys — all server-side on Vercel
+No key ever appears in this repo or in any browser. The frontend calls our
+own serverless proxy (`/api/*`); the proxy attaches the key from a Vercel
+**environment variable** and forwards the request.
 
-## ⚠️ Security note
-This is a **static** site. Anything **committed** ships publicly on GitHub
-Pages — never paste a real key into a tracked file. The two methods above keep
-the key out of the repo entirely. A truly server-hidden key requires a small
-backend proxy (Cloudflare Workers / Vercel free tier) — planned as a Phase 6
-option for the OpenAI key.
+| Function      | Upstream API        | Env var    |
+|---------------|---------------------|------------|
+| `api/games.js`| balldontlie (NBA)   | `BDL_KEY`  |
+| `api/odds.js` | The Odds API        | `ODDS_KEY` |
+
+### Deploy steps
+1. Push this repo to GitHub.
+2. Sign up at **https://vercel.com** with your GitHub account (free Hobby plan).
+3. **Add New → Project** → import `sports-analyst` → Framework preset:
+   **Other** → Deploy. The static site and `/api` functions deploy together.
+4. Project → **Settings → Environment Variables** → add `BDL_KEY`
+   (from https://app.balldontlie.io) and later `ODDS_KEY`
+   (from https://the-odds-api.com). Redeploy after adding.
+5. Done — the site is live at `https://<project>.vercel.app`.
+
+If the frontend is ALSO hosted on GitHub Pages, set `proxyBase` in
+`js/config.js` to the full Vercel URL (e.g.
+`https://sports-analyst.vercel.app/api`) so Pages can reach the proxy.
+
+Without a reachable proxy the site runs in demo mode with sample data.
 
 ## Run locally
 Just open `index.html`, or serve the folder:

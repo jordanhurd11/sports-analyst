@@ -251,27 +251,10 @@ document.addEventListener("mousemove", (e) => {
   el.style.setProperty("--my", `${e.clientY - r.top}px`);
 });
 
-/* ---------- API key entry via the header status chip ---------- */
-// Clicking the chip stores the key in localStorage only — it never
-// enters the repo or the deployed files.
-function initKeyChip() {
-  els.sourceNote.style.cursor = "pointer";
-  els.sourceNote.title = "Click to add or clear your balldontlie API key";
-  els.sourceNote.addEventListener("click", () => {
-    const current = SportsAPI.getKey() || "";
-    const entered = prompt(
-      "Paste your balldontlie API key (leave empty to clear):", current);
-    if (entered === null) return; // cancelled
-    SportsAPI.setKey(entered.trim());
-    selectSport(state.sport);     // refetch with the new key
-  });
-}
-
 /* ---------- Init ---------- */
 function init() {
   renderSportNav();
   renderFavorites();
-  initKeyChip();
   selectSport(state.sport);   // load first sport
 }
 document.addEventListener("DOMContentLoaded", init);
