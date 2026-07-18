@@ -7,9 +7,18 @@
    Variables. It is never sent to the browser.
 
    Usage from the frontend:
-     GET /api/games?dates[]=2026-07-17&dates[]=2026-07-16&per_page=100
-   (query params are forwarded to balldontlie unchanged)
+     GET /api/games?league=nba&dates[]=2026-07-17&per_page=100
+   `league` picks the balldontlie sport API; all other query params
+   are forwarded to balldontlie unchanged.
    =================================================================== */
+
+const LEAGUE_PATHS = {
+  nba: "nba/v1",
+  nfl: "nfl/v1",
+  mlb: "mlb/v1",
+  nhl: "nhl/v1",
+  epl: "epl/v1"
+};
 
 module.exports = async (req, res) => {
   // Allow the GitHub Pages copy of the site to call this proxy too
@@ -23,11 +32,23 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: "BDL_KEY env var not set on Vercel" });
   }
 
-  const qs = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+  const league = (req.query && req.query.league) || "nba";
+  const path = LEAGUE_PATHS[league];
+  if (!path) {
+    return res.status(400).json({ error: `unsupported league: ${league}` });
+  }
+
+  // forward everything except our own `league` param
+  const params = new URLSearchParams(
+    req.url.includes("?") ? req.url.slice(req.url.indexOf("?") + 1) : ""
+  );
+  params.delete("league");
+
   try {
-    const upstream = await fetch(`https://api.balldontlie.io/v1/games${qs}`, {
-      headers: { Authorization: key }
-    });
+    const upstream = await fetch(
+      `https://api.balldontlie.io/${path}/games?${params}`,
+      { headers: { Authorization: key } }
+    );
     const body = await upstream.json();
     // brief CDN cache so repeat visitors don't burn the rate limit
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
