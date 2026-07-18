@@ -22,6 +22,29 @@ function tint(hex, alpha) {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
+/* True when two hex colors are visually close (RGB distance), so
+   "same color" catches near-identical shades like GSW/DEN gold too */
+function colorsClose(hexA, hexB) {
+  const a = parseInt(hexA.slice(1), 16), b = parseInt(hexB.slice(1), 16);
+  const dr = ((a >> 16) & 255) - ((b >> 16) & 255);
+  const dg = ((a >> 8) & 255) - ((b >> 8) & 255);
+  const db = (a & 255) - (b & 255);
+  return Math.sqrt(dr * dr + dg * dg + db * db) < 80;
+}
+
+/* Per-game display colors: if both teams share a color, the AWAY team
+   goes white/neutral so the two sides stay distinguishable */
+function displayColors(g) {
+  const away = { ...g.away.colors };
+  const home = { ...g.home.colors };
+  if (colorsClose(away.font, home.font)) {
+    away.font = "#FFFFFF";
+    away.g1 = "#8A97A8";   // neutral wash instead of the clashing color
+    away.g2 = "#FFFFFF";
+  }
+  return { away, home };
+}
+
 /* ---------- Sport selector ---------- */
 function renderSportNav() {
   const sports = SportsAPI.getSports();
@@ -60,19 +83,22 @@ function renderGamesList() {
     els.gamesList.innerHTML = `<div class="placeholder-note">No games listed.</div>`;
     return;
   }
-  els.gamesList.innerHTML = state.games.map((g, idx) => `
+  els.gamesList.innerHTML = state.games.map((g, idx) => {
+    const dc = displayColors(g);
+    return `
     <div class="game-card anim-in ${g.live ? "live" : ""}" data-id="${g.id}"
-         style="--i:${idx}; --away-t:${tint(g.away.colors.g1, 0.16)}; --home-t:${tint(g.home.colors.g1, 0.16)}">
+         style="--i:${idx}; --away-t:${tint(dc.away.g1, 0.16)}; --home-t:${tint(dc.home.g1, 0.16)}">
       <div class="gc-time">${g.time}</div>
       <div class="gc-row">
-        <span class="gc-team" style="color:${g.away.colors.font}">${g.away.abbr} ${g.away.name}</span>
+        <span class="gc-team" style="color:${dc.away.font}">${g.away.abbr} ${g.away.name}</span>
         <span class="gc-score">${g.away.score ?? ""}</span>
       </div>
       <div class="gc-row">
-        <span class="gc-team" style="color:${g.home.colors.font}">${g.home.abbr} ${g.home.name}</span>
+        <span class="gc-team" style="color:${dc.home.font}">${g.home.abbr} ${g.home.name}</span>
         <span class="gc-score">${g.home.score ?? ""}</span>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 
   els.gamesList.querySelectorAll(".game-card").forEach((card) => {
     card.addEventListener("click", () => selectGame(card.dataset.id));
@@ -112,11 +138,13 @@ function renderDetail(g) {
   awayBlock.innerHTML = teamBlock(g.away);
   homeBlock.innerHTML = teamBlock(g.home);
 
-  // Team colors: gradient abbreviations + colored names, tinted matchup banner
-  awayBlock.style.cssText = `--t1:${g.away.colors.g1}; --t2:${g.away.colors.g2}; --tfont:${g.away.colors.font}`;
-  homeBlock.style.cssText = `--t1:${g.home.colors.g1}; --t2:${g.home.colors.g2}; --tfont:${g.home.colors.font}`;
-  els.gameDetail.style.setProperty("--away-t", tint(g.away.colors.g1, 0.18));
-  els.gameDetail.style.setProperty("--home-t", tint(g.home.colors.g1, 0.18));
+  // Team colors: gradient abbreviations + colored names, tinted matchup banner.
+  // displayColors() flips the away team to white when both teams share a color.
+  const dc = displayColors(g);
+  awayBlock.style.cssText = `--t1:${dc.away.g1}; --t2:${dc.away.g2}; --tfont:${dc.away.font}`;
+  homeBlock.style.cssText = `--t1:${dc.home.g1}; --t2:${dc.home.g2}; --tfont:${dc.home.font}`;
+  els.gameDetail.style.setProperty("--away-t", tint(dc.away.g1, 0.18));
+  els.gameDetail.style.setProperty("--home-t", tint(dc.home.g1, 0.18));
 
   // Odds
   document.getElementById("oddsGrid").innerHTML = `
@@ -129,8 +157,8 @@ function renderDetail(g) {
   const tiCell = (label, o) =>
     `<div class="ti-cell"><div class="ti-label">${label}</div>
        <div class="ti-vals">
-         <span style="color:${g.away.colors.font}">${g.away.abbr} ${o.away}</span>
-         <span style="color:${g.home.colors.font}">${g.home.abbr} ${o.home}</span>
+         <span style="color:${dc.away.font}">${g.away.abbr} ${o.away}</span>
+         <span style="color:${dc.home.font}">${g.home.abbr} ${o.home}</span>
        </div></div>`;
   document.getElementById("teamInfoGrid").innerHTML =
     tiCell("Last 5", ti.last5) + tiCell("Home / Away", ti.homeAway) +
@@ -138,7 +166,7 @@ function renderDetail(g) {
 
   // Injuries
   const teamFont = (abbr) =>
-    abbr === g.away.abbr ? g.away.colors.font : g.home.colors.font;
+    abbr === g.away.abbr ? dc.away.font : dc.home.font;
   document.getElementById("injuryList").innerHTML = g.injuries.length
     ? g.injuries.map((i) => `
         <li>
