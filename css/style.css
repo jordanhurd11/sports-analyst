@@ -253,6 +253,10 @@ body {
   position: relative;
   overflow: hidden;
   background: var(--bg-elevated);
+  /* two-tone wash: away color sweeps from the left, home from the right */
+  background-image:
+    linear-gradient(115deg, var(--away-t, transparent), transparent 48%),
+    linear-gradient(295deg, var(--home-t, transparent), transparent 48%);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 14px;
@@ -344,18 +348,26 @@ body {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--border);
+  padding: 16px 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
   margin-bottom: 18px;
+  /* team-color banner: away tint on the left, home tint on the right */
+  background-image: linear-gradient(100deg,
+    var(--away-t, transparent) 0%,
+    transparent 42%, transparent 58%,
+    var(--home-t, transparent) 100%);
 }
 .team-block { text-align: center; }
 .team-block .tb-abbr {
   font-size: 32px; font-weight: 700; letter-spacing: .04em;
-  background: linear-gradient(180deg, var(--text), rgba(125,141,161,.75));
+  /* gradient built from the team's two colors (JS sets --t1/--t2) */
+  background: linear-gradient(160deg, var(--t2, var(--text)), var(--t1, rgba(125,141,161,.75)));
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; color: transparent;
+  filter: drop-shadow(0 0 14px var(--t1, transparent));
 }
-.team-block .tb-name { font-size: 13px; color: var(--text-dim); }
+.team-block .tb-name { font-size: 13px; color: var(--tfont, var(--text-dim)); }
 .team-block .tb-rec {
   font-family: var(--font-mono);
   font-size: 11px; color: var(--accent); margin-top: 4px;

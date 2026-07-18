@@ -16,6 +16,12 @@ const els = {
 
 const state = { sport: null, games: [], selected: null };
 
+/* Convert "#RRGGBB" to a low-alpha rgba() for background tints */
+function tint(hex, alpha) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 /* ---------- Sport selector ---------- */
 function renderSportNav() {
   const sports = SportsAPI.getSports();
@@ -55,14 +61,15 @@ function renderGamesList() {
     return;
   }
   els.gamesList.innerHTML = state.games.map((g, idx) => `
-    <div class="game-card anim-in ${g.live ? "live" : ""}" data-id="${g.id}" style="--i:${idx}">
+    <div class="game-card anim-in ${g.live ? "live" : ""}" data-id="${g.id}"
+         style="--i:${idx}; --away-t:${tint(g.away.colors.g1, 0.16)}; --home-t:${tint(g.home.colors.g1, 0.16)}">
       <div class="gc-time">${g.time}</div>
       <div class="gc-row">
-        <span class="gc-team">${g.away.abbr} ${g.away.name}</span>
+        <span class="gc-team" style="color:${g.away.colors.font}">${g.away.abbr} ${g.away.name}</span>
         <span class="gc-score">${g.away.score ?? ""}</span>
       </div>
       <div class="gc-row">
-        <span class="gc-team">${g.home.abbr} ${g.home.name}</span>
+        <span class="gc-team" style="color:${g.home.colors.font}">${g.home.abbr} ${g.home.name}</span>
         <span class="gc-score">${g.home.score ?? ""}</span>
       </div>
     </div>`).join("");
@@ -100,8 +107,16 @@ function teamBlock(t) {
 }
 
 function renderDetail(g) {
-  document.getElementById("awayBlock").innerHTML = teamBlock(g.away);
-  document.getElementById("homeBlock").innerHTML = teamBlock(g.home);
+  const awayBlock = document.getElementById("awayBlock");
+  const homeBlock = document.getElementById("homeBlock");
+  awayBlock.innerHTML = teamBlock(g.away);
+  homeBlock.innerHTML = teamBlock(g.home);
+
+  // Team colors: gradient abbreviations + colored names, tinted matchup banner
+  awayBlock.style.cssText = `--t1:${g.away.colors.g1}; --t2:${g.away.colors.g2}; --tfont:${g.away.colors.font}`;
+  homeBlock.style.cssText = `--t1:${g.home.colors.g1}; --t2:${g.home.colors.g2}; --tfont:${g.home.colors.font}`;
+  els.gameDetail.style.setProperty("--away-t", tint(g.away.colors.g1, 0.18));
+  els.gameDetail.style.setProperty("--home-t", tint(g.home.colors.g1, 0.18));
 
   // Odds
   document.getElementById("oddsGrid").innerHTML = `
@@ -113,18 +128,23 @@ function renderDetail(g) {
   const ti = g.teamInfo;
   const tiCell = (label, o) =>
     `<div class="ti-cell"><div class="ti-label">${label}</div>
-       <div class="ti-vals"><span>${g.away.abbr} ${o.away}</span><span>${g.home.abbr} ${o.home}</span></div></div>`;
+       <div class="ti-vals">
+         <span style="color:${g.away.colors.font}">${g.away.abbr} ${o.away}</span>
+         <span style="color:${g.home.colors.font}">${g.home.abbr} ${o.home}</span>
+       </div></div>`;
   document.getElementById("teamInfoGrid").innerHTML =
     tiCell("Last 5", ti.last5) + tiCell("Home / Away", ti.homeAway) +
     tiCell("Streak", ti.streak) + tiCell("Rankings", ti.rank);
 
   // Injuries
+  const teamFont = (abbr) =>
+    abbr === g.away.abbr ? g.away.colors.font : g.home.colors.font;
   document.getElementById("injuryList").innerHTML = g.injuries.length
     ? g.injuries.map((i) => `
         <li>
           <span class="inj-status ${i.cls}">${i.status}</span>
           <span class="inj-player">${i.player}</span>
-          <span class="inj-team">${i.team}</span>
+          <span class="inj-team" style="color:${teamFont(i.team)}">${i.team}</span>
         </li>`).join("")
     : `<li>No injuries reported.</li>`;
 
