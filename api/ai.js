@@ -41,36 +41,53 @@ module.exports = async (req, res) => {
   const q = question.trim().slice(0, 300);
   const ctx = typeof context === "string" ? context.slice(0, 4000) : "";
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-  const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  // Google retires model names often — try candidates until one works.
+  // "-latest" aliases track Google's newest models automatically.
+  const candidates = [
+    process.env.GEMINI_MODEL,
+    globalThis.__workingModel,           // remembered from a prior request
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
+    "gemini-3-flash",
+    "gemini-2.5-flash"
+  ].filter(Boolean);
 
-  try {
-    const upstream = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{
-          role: "user",
-          parts: [{ text: `Game data:\n${ctx}\n\nQuestion: ${q}` }]
-        }],
-        generationConfig: { temperature: 0.6, maxOutputTokens: 512 }
-      })
-    });
+  const payload = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [{
+      role: "user",
+      parts: [{ text: `Game data:\n${ctx}\n\nQuestion: ${q}` }]
+    }],
+    generationConfig: { temperature: 0.6, maxOutputTokens: 512 }
+  });
 
-    const body = await upstream.json();
-    if (!upstream.ok) {
-      const msg = body?.error?.message || `Gemini HTTP ${upstream.status}`;
-      // 429 = free-tier rate limit — tell the frontend distinctly
-      return res.status(upstream.status === 429 ? 429 : 502).json({ error: msg });
+  let lastError = "no model candidates";
+  for (const model of [...new Set(candidates)]) {
+    try {
+      const upstream = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: payload }
+      );
+      const body = await upstream.json();
+
+      if (upstream.status === 429) {
+        // rate limit — no point trying other models with the same key
+        return res.status(429).json({ error: body?.error?.message || "rate limited" });
+      }
+      if (!upstream.ok) {
+        lastError = body?.error?.message || `Gemini HTTP ${upstream.status}`;
+        continue; // retired/unknown model name — try the next candidate
+      }
+
+      const text = body?.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text).filter(Boolean).join("") || "";
+      if (!text) { lastError = "empty response from Gemini"; continue; }
+
+      globalThis.__workingModel = model; // warm lambda: skip dead names next time
+      return res.status(200).json({ text, model });
+    } catch (err) {
+      lastError = `upstream failed: ${err.message}`;
     }
-
-    const text = body?.candidates?.[0]?.content?.parts
-      ?.map((p) => p.text).filter(Boolean).join("") || "";
-    if (!text) return res.status(502).json({ error: "empty response from Gemini" });
-    return res.status(200).json({ text });
-  } catch (err) {
-    return res.status(502).json({ error: `upstream failed: ${err.message}` });
   }
+  return res.status(502).json({ error: lastError });
 };
