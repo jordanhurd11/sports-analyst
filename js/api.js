@@ -255,7 +255,7 @@ const SportsAPI = (() => {
         rank:     { away: "— (Phase 3)", home: "— (Phase 3)" }
       },
       injuries: [],
-      trends: { ats: "— (Phase 5)", ou: "—", public: "—", line: "—" }
+      trends: { ats: "—", ou: "—", public: "—", line: "—" }
     };
   }
 
@@ -912,6 +912,9 @@ const SportsAPI = (() => {
 
     game.odds = odds;
     game.oddsLive = true;
+    // raw numbers kept for trend math (implied probability, total line)
+    game.mlRaw = { away: raw.mlAway ?? null, home: raw.mlHome ?? null };
+    game.totRaw = raw.tot ?? null;
 
     // Starting (pregame) odds — from the snapshot store
     try {
@@ -969,6 +972,51 @@ const SportsAPI = (() => {
            rows.find((r) => nick && r.name.includes(nick)) || null;
   }
 
+  /* Betting-trend metrics computed from data we legitimately have:
+     recent finals in the two-week window + the live market numbers.
+     (True ATS records and public-betting splits need paid feeds.) */
+  function computeTrends(sport, game) {
+    const windowGames = cache[sport]?.games || [];
+    const finals = windowGames.filter((g) =>
+      g.src === "live" && /^(FINAL|FT)/.test(g.time) &&
+      g.away.score != null && g.home.score != null);
+    const recentFor = (team) =>
+      finals.filter((g) => g.away.abbr === team.abbr || g.home.abbr === team.abbr)
+            .slice(-10);
+    const marginFor = (team) => {
+      const gs = recentFor(team);
+      if (gs.length < 2) return null;
+      const sum = gs.reduce((s, g) => s + (g.home.abbr === team.abbr
+        ? g.home.score - g.away.score
+        : g.away.score - g.home.score), 0);
+      return Math.round((sum / gs.length) * 10) / 10;
+    };
+    const sign = (v) => (v > 0 ? `+${v}` : `${v}`);
+    const trends = { ...game.trends };
+
+    const am = marginFor(game.away), hm = marginFor(game.home);
+    if (am != null && hm != null) {
+      trends.ats = `${game.away.abbr} ${sign(am)} · ${game.home.abbr} ${sign(hm)}`;
+    }
+
+    const totals = [...recentFor(game.away), ...recentFor(game.home)]
+      .map((g) => g.away.score + g.home.score);
+    if (totals.length >= 3) {
+      const avg = Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10;
+      trends.ou = game.totRaw != null ? `Avg ${avg} · line ${game.totRaw}` : `Avg ${avg}`;
+    }
+
+    if (game.mlRaw && game.mlRaw.away != null && game.mlRaw.home != null) {
+      // moneyline → implied win probability, vig removed by normalizing
+      const p = (o) => (o < 0 ? -o / (-o + 100) : 100 / (o + 100));
+      const pa = p(game.mlRaw.away), ph = p(game.mlRaw.home);
+      const na = Math.round((pa / (pa + ph)) * 100);
+      trends.public = `${game.away.abbr} ${na}% · ${game.home.abbr} ${100 - na}%`;
+    }
+
+    game.trends = trends;
+  }
+
   /* Fill a live game's placeholders with real standings + injuries.
      Mutates and returns the game; safe to call more than once. */
   async function enrichGame(sport, game) {
@@ -1007,6 +1055,8 @@ const SportsAPI = (() => {
     };
     const inj = [...injuriesFor(game.away), ...injuriesFor(game.home)];
     if (inj.length) game.injuries = inj;
+
+    computeTrends(sport, game);
 
     game.enriched = true;
     return game;

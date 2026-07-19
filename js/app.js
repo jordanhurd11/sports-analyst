@@ -248,9 +248,14 @@ function renderDetail(g) {
   const tr = g.trends;
   const trCell = (label, val) =>
     `<div class="trend-cell"><div class="tc-label">${label}</div><div class="tc-val">${val}</div></div>`;
+  // For live games these are computed (recent margins/totals + market
+  // math); demo games keep their sample text
+  const liveTrends = g.src === "live";
   document.getElementById("trendsGrid").innerHTML =
-    trCell("Against the Spread", tr.ats) + trCell("Over / Under", tr.ou) +
-    trCell("Public Betting", tr.public) + trCell("Line Movement", tr.line);
+    trCell(liveTrends ? "Avg Margin · Recent" : "Against the Spread", tr.ats) +
+    trCell(liveTrends ? "Avg Total · Recent" : "Over / Under", tr.ou) +
+    trCell(liveTrends ? "Implied Win %" : "Public Betting", tr.public) +
+    trCell("Line Movement", tr.line);
 
   // AI placeholder (Phase 6 replaces with real generated text).
   // Words fade in one-by-one via the .ai-word stagger animation.
