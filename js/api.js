@@ -267,11 +267,11 @@ const SportsAPI = (() => {
   function adaptVH(raw, sport) {
     const status = String(raw.status || "");
     const isFinal = /final/i.test(status);
-    const isScheduled = status.includes("T") || /sched/i.test(status);
+    // a real timestamp, not just any "T" (which "Final/OT" contains!)
+    const isoLike = /^\d{4}-\d{2}-\d{2}T/.test(status);
+    const isScheduled = isoLike || /sched/i.test(status);
     const live = !isFinal && !isScheduled;
-    // status is only usable as a timestamp when it IS one (scheduled
-    // games) — otherwise it's text like "Final" and must be skipped
-    const when = raw.datetime || (status.includes("T") ? status : raw.date);
+    const when = raw.datetime || (isoLike ? status : raw.date);
     const dateStr = localDate(when);
 
     let time;
