@@ -456,11 +456,11 @@ const SportsAPI = (() => {
     return games.map(adapt).sort((a, b) => a.ts - b.ts);
   }
 
-  /* Two-week window first; if the league is in its offseason and the
+  /* 14 days back + 14 ahead; if the league is in its offseason and the
      window is empty, show its most recent championship round instead. */
   async function fetchWindowOrFallback(league, fallbackDates, adapt) {
     try {
-      return await fetchByDates(league, datesAround(7, 7), adapt);
+      return await fetchByDates(league, datesAround(14, 14), adapt);
     } catch {
       return fetchByDates(league, fallbackDates, adapt);
     }
@@ -477,15 +477,17 @@ const SportsAPI = (() => {
       ["2026-01-11", "2026-01-18", "2026-01-25", "2026-02-08"],
       (g) => adaptVH(g, "NFL")
     ),
-    MLB: () => fetchByDates("mlb", datesAround(7, 7), adaptMLB),
+    // 14 back for trend math; MLB plays ~15 games/day so its forward
+    // window is shorter to stay inside the pagination/rate-limit budget
+    MLB: () => fetchByDates("mlb", datesAround(14, 7), adaptMLB),
     NHL: async () => {
       // balldontlie's NHL needs a paid tier, so NHL comes from ESPN's
       // scoreboard instead. Two-week window; if the offseason is
       // empty, fall back to the most recent Stanley Cup Final.
       const ymd = (d) => iso(d).replace(/-/g, "");
       const now = new Date();
-      const back = new Date(); back.setDate(back.getDate() - 7);
-      const fwd = new Date(); fwd.setDate(fwd.getDate() + 7);
+      const back = new Date(); back.setDate(back.getDate() - 14);
+      const fwd = new Date(); fwd.setDate(fwd.getDate() + 14);
       const ranges = [`${ymd(back)}-${ymd(fwd)}`];
       const year = now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear();
       ranges.push(`${year}0520-${year}0701`);
@@ -980,9 +982,9 @@ const SportsAPI = (() => {
     const finals = windowGames.filter((g) =>
       g.src === "live" && /^(FINAL|FT)/.test(g.time) &&
       g.away.score != null && g.home.score != null);
+    // every completed game in the 14-day lookback — no extra cap
     const recentFor = (team) =>
-      finals.filter((g) => g.away.abbr === team.abbr || g.home.abbr === team.abbr)
-            .slice(-10);
+      finals.filter((g) => g.away.abbr === team.abbr || g.home.abbr === team.abbr);
     const marginFor = (team) => {
       const gs = recentFor(team);
       if (gs.length < 2) return null;
