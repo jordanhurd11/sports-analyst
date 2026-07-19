@@ -54,8 +54,9 @@ module.exports = async (req, res) => {
       { headers: { Authorization: key } }
     );
     const body = await upstream.json();
-    // brief CDN cache so repeat visitors don't burn the rate limit
-    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
+    // brief CDN cache so repeat visitors don't burn the rate limit,
+    // short enough that live scores stay current
+    res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=120");
     return res.status(upstream.status).json(body);
   } catch (err) {
     return res.status(502).json({ error: `upstream failed: ${err.message}` });

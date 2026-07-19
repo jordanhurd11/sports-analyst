@@ -106,7 +106,7 @@ async function selectSport(sport) {
 }
 
 /* ---------- Games list ---------- */
-function renderGamesList() {
+function renderGamesList(animate = true) {
   // show only the selected date's games; the full two-week window
   // stays in state.allGames for instant date switching
   const today = localISO();
@@ -119,10 +119,13 @@ function renderGamesList() {
     return;
   }
 
+  const prevScroll = els.gamesList.scrollTop;
   els.gamesList.innerHTML = state.games.map((g, idx) => {
     const dc = displayColors(g);
+    const active = state.selected && state.selected.id === g.id;
     return `
-    <div class="game-card anim-in ${g.live ? "live" : ""}" data-id="${g.id}"
+    <div class="game-card ${animate ? "anim-in" : ""} ${g.live ? "live" : ""} ${active ? "active" : ""}"
+         data-id="${g.id}"
          style="--i:${Math.min(idx, 8)}; --away-t:${tint(dc.away.g1, 0.16)}; --home-t:${tint(dc.home.g1, 0.16)}">
       <div class="gc-time">${g.time}</div>
       <div class="gc-row">
@@ -139,7 +142,8 @@ function renderGamesList() {
   els.gamesList.querySelectorAll(".game-card").forEach((card) => {
     card.addEventListener("click", () => selectGame(card.dataset.id));
   });
-  els.gamesList.scrollTop = 0;
+  // silent refreshes keep the user's scroll position
+  els.gamesList.scrollTop = animate ? 0 : prevScroll;
 }
 
 /* ---------- Game detail ---------- */
@@ -189,13 +193,23 @@ function renderDetail(g) {
   els.gameDetail.style.setProperty("--away-t", tint(dc.away.g1, 0.18));
   els.gameDetail.style.setProperty("--home-t", tint(dc.home.g1, 0.18));
 
-  // Odds — tag reflects where the lines came from
+  // Odds — tag reflects where the lines came from; when live, show the
+  // opening line (first seen by this browser) under the current one
   document.getElementById("oddsTag").textContent =
     g.oddsLive ? "live" : (g.src === "live" ? "no market" : "demo");
+  const openSub = (cur, open) => {
+    if (!g.oddsLive || !g.oddsOpen || open == null) return "";
+    return open === cur
+      ? `<div class="oc-sub">open · unchanged</div>`
+      : `<div class="oc-sub">open ${open}</div>`;
+  };
   document.getElementById("oddsGrid").innerHTML = `
-    <div class="odds-cell"><div class="oc-label">Spread</div><div class="oc-val">${g.odds.spread}</div></div>
-    <div class="odds-cell"><div class="oc-label">Moneyline</div><div class="oc-val" style="font-size:13px">${g.odds.moneyline}</div></div>
-    <div class="odds-cell"><div class="oc-label">Total</div><div class="oc-val">${g.odds.total}</div></div>`;
+    <div class="odds-cell"><div class="oc-label">Spread</div>
+      <div class="oc-val">${g.odds.spread}</div>${openSub(g.odds.spread, g.oddsOpen?.spread)}</div>
+    <div class="odds-cell"><div class="oc-label">Moneyline</div>
+      <div class="oc-val" style="font-size:13px">${g.odds.moneyline}</div>${openSub(g.odds.moneyline, g.oddsOpen?.moneyline)}</div>
+    <div class="odds-cell"><div class="oc-label">Total</div>
+      <div class="oc-val">${g.odds.total}</div>${openSub(g.odds.total, g.oddsOpen?.total)}</div>`;
 
   // Team info
   const ti = g.teamInfo;
@@ -299,6 +313,31 @@ function initDateBar() {
     state.date = els.datePick.value;
     renderGamesList();
   });
+}
+
+/* ---------- Live refresh ---------- */
+// Every 60s, quietly refetch just the visible day (1 request) and
+// update scores in place — no animations, no scroll jump.
+async function pollLive() {
+  if (document.hidden || !state.sport || !state.date) return;
+  const fresh = await SportsAPI.refreshDay(state.sport, state.date);
+  if (!fresh || !fresh.length) return;
+
+  const others = state.allGames.filter((g) => g.date !== state.date);
+  state.allGames = [...others, ...fresh].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  renderGamesList(false);
+
+  // keep the open detail panel in sync with the refreshed data
+  if (state.selected) {
+    const updated = fresh.find((g) => g.id === state.selected.id);
+    if (updated) {
+      state.selected = updated;
+      renderDetail(updated);
+      SportsAPI.enrichGame(state.sport, updated).then((g) => {
+        if (state.selected && state.selected.id === g.id) renderDetail(g);
+      }).catch(() => {});
+    }
+  }
 }
 
 /* ---------- AI assistant ---------- */
@@ -451,6 +490,7 @@ function init() {
   renderTracker();
   initAssistant();
   initDateBar();
+  setInterval(pollLive, 60_000);
   selectSport(state.sport);   // load first sport
 }
 document.addEventListener("DOMContentLoaded", init);

@@ -799,13 +799,53 @@ const SportsAPI = (() => {
   function getOdds(sport) {
     const key = ODDS_SPORT_KEYS[sport];
     if (!key) return Promise.resolve([]);
-    if (!oddsCache[sport]) {
-      oddsCache[sport] = fetch(`${PROXY}/odds?sport=${key}`)
-        .then((r) => (r.ok ? r.json() : []))
-        .then((j) => (Array.isArray(j) ? j : []))
-        .catch(() => []);
+    // 10 min TTL, aligned with the proxy's CDN cache: live odds move,
+    // but the free tier's 500 credits/month can't afford minute polling
+    const hit = oddsCache[sport];
+    if (!hit || Date.now() - hit.at > 600_000) {
+      oddsCache[sport] = {
+        at: Date.now(),
+        p: fetch(`${PROXY}/odds?sport=${key}`)
+          .then((r) => (r.ok ? r.json() : []))
+          .then((j) => (Array.isArray(j) ? j : []))
+          .catch(() => [])
+      };
     }
-    return oddsCache[sport];
+    return oddsCache[sport].p;
+  }
+
+  /* Opening lines: the free tier has no odds history, so we record the
+     FIRST line this browser sees per game (localStorage) and show
+     movement relative to that. Old entries are swept after 3 days. */
+  try {
+    const cutoff = Date.now() - 3 * 24 * 3600 * 1000;
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("smartbet.open."))
+      .forEach((k) => {
+        try {
+          const v = JSON.parse(localStorage.getItem(k));
+          if (!v || !v.at || v.at < cutoff) localStorage.removeItem(k);
+        } catch { localStorage.removeItem(k); }
+      });
+  } catch { /* localStorage unavailable */ }
+
+  function trackOpeningLine(game, odds) {
+    try {
+      const k = `smartbet.open.${game.id}`;
+      let open = JSON.parse(localStorage.getItem(k) || "null");
+      if (!open) {
+        open = { spread: odds.spread, moneyline: odds.moneyline,
+                 total: odds.total, at: Date.now() };
+        localStorage.setItem(k, JSON.stringify(open));
+      }
+      game.oddsOpen = open;
+      game.trends = {
+        ...game.trends,
+        line: open.spread !== odds.spread
+          ? `Opened ${open.spread} → now ${odds.spread}`
+          : `Steady at ${odds.spread === "—" ? odds.moneyline : odds.spread}`
+      };
+    } catch { /* localStorage unavailable — skip movement tracking */ }
   }
 
   /* Apply live market lines to a game if a bookmaker offers them.
@@ -857,6 +897,27 @@ const SportsAPI = (() => {
     if (odds.moneyline !== "—" || odds.spread !== "—" || odds.total !== "—") {
       game.odds = odds;
       game.oddsLive = true;
+      trackOpeningLine(game, odds);
+    }
+  }
+
+  /* Silent refresh of a single day — one cheap request, used by the
+     60s live poll so scores stay current without refetching 2 weeks. */
+  async function refreshDay(sport, dateStr) {
+    if (!PROXY || !dateStr) return null;
+    try {
+      if (sport === "NHL") {
+        const res = await fetch(
+          `${PROXY}/espn?league=nhl&type=scoreboard&dates=${dateStr.replace(/-/g, "")}`);
+        if (!res.ok) return null;
+        const events = (await res.json()).events || [];
+        return events.map((e) => adaptESPNEvent(e, "NHL")).sort((a, b) => a.ts - b.ts);
+      }
+      if (sport === "EPL") return null; // week-based feed; no minute-level refresh
+      const adapt = sport === "MLB" ? adaptMLB : (g) => adaptVH(g, sport);
+      return await fetchByDates(sport.toLowerCase(), [dateStr], adapt);
+    } catch {
+      return null;
     }
   }
 
@@ -919,16 +980,22 @@ const SportsAPI = (() => {
     const fetcher = LIVE_FETCHERS[sport];
 
     if (PROXY && fetcher) {
-      if (cache[sport]) {
+      // 60s TTL so live scores refresh instead of freezing all session
+      const hit = cache[sport];
+      if (hit && Date.now() - hit.at < 60_000) {
         lastSource = `LIVE · ${sport}`;
-        return cache[sport];
+        return hit.games;
       }
       try {
         const games = await fetcher();
-        cache[sport] = games;
+        cache[sport] = { games, at: Date.now() };
         lastSource = `LIVE · ${sport}`;
         return games;
       } catch (err) {
+        if (hit) { // refresh failed — stale data beats demo data
+          lastSource = `LIVE · ${sport}`;
+          return hit.games;
+        }
         console.warn(`${sport} live fetch failed, using demo data:`, err.message);
         lastSource = err.message.includes("401")
           ? `DEMO · ${sport} NOT IN FREE TIER`
@@ -951,5 +1018,5 @@ const SportsAPI = (() => {
     return lastSource;
   }
 
-  return { getSports, getGames, getSource, enrichGame };
+  return { getSports, getGames, getSource, enrichGame, refreshDay };
 })();
