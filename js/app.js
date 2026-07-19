@@ -94,11 +94,33 @@ function renderGamesList() {
     els.gamesList.innerHTML = `<div class="placeholder-note">No games listed.</div>`;
     return;
   }
-  els.gamesList.innerHTML = state.games.map((g, idx) => {
+
+  // date headers: games arrive oldest→newest; label each day's group
+  const pad = (n) => String(n).padStart(2, "0");
+  const rel = (offset) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const names = { [rel(-1)]: "Yesterday", [rel(0)]: "Today", [rel(1)]: "Tomorrow" };
+  const dateLabel = (d) => names[d] ||
+    new Date(d + "T12:00:00").toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+
+  const todayISO = rel(0);
+  let html = "", prevDate = null, focusMarked = false;
+  state.games.forEach((g, idx) => {
+    const gd = g.date || todayISO;
+    if (gd !== prevDate) {
+      // first group at/after today gets flagged so we can scroll to it
+      const focus = !focusMarked && gd >= todayISO;
+      if (focus) focusMarked = true;
+      html += `<div class="date-divider ${focus ? "focus" : ""}">${dateLabel(gd)}</div>`;
+      prevDate = gd;
+    }
     const dc = displayColors(g);
-    return `
+    html += `
     <div class="game-card anim-in ${g.live ? "live" : ""}" data-id="${g.id}"
-         style="--i:${idx}; --away-t:${tint(dc.away.g1, 0.16)}; --home-t:${tint(dc.home.g1, 0.16)}">
+         style="--i:${Math.min(idx, 8)}; --away-t:${tint(dc.away.g1, 0.16)}; --home-t:${tint(dc.home.g1, 0.16)}">
       <div class="gc-time">${g.time}</div>
       <div class="gc-row">
         <span class="gc-team" style="color:${dc.away.font}">${g.away.abbr} ${g.away.name}</span>
@@ -109,11 +131,16 @@ function renderGamesList() {
         <span class="gc-score">${g.home.score ?? ""}</span>
       </div>
     </div>`;
-  }).join("");
+  });
+  els.gamesList.innerHTML = html;
 
   els.gamesList.querySelectorAll(".game-card").forEach((card) => {
     card.addEventListener("click", () => selectGame(card.dataset.id));
   });
+
+  // land the scroll on today (or the next day with games)
+  const focusEl = els.gamesList.querySelector(".date-divider.focus");
+  if (focusEl) els.gamesList.scrollTop = focusEl.offsetTop - els.gamesList.offsetTop - 4;
 }
 
 /* ---------- Game detail ---------- */

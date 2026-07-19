@@ -216,6 +216,34 @@ const SportsAPI = (() => {
     return out;
   }
 
+  /* One week back through one week ahead (local time) */
+  function datesAround(back = 7, fwd = 7) {
+    const out = [];
+    for (let i = -back; i <= fwd; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      out.push(iso(d));
+    }
+    return out;
+  }
+
+  /* APIs stamp games in UTC ("2026-07-18T01:39Z" is a 9:39pm ET game
+     on JULY 17). Full timestamps get converted to the user's local
+     date; date-only strings pass through untouched. */
+  function localDate(s) {
+    const str = String(s || "");
+    if (str.includes("T")) {
+      const d = new Date(str);
+      if (!isNaN(d)) return iso(d);
+    }
+    return str.slice(0, 10);
+  }
+
+  function gameTs(s) {
+    const d = new Date(String(s || ""));
+    return isNaN(d) ? 0 : d.getTime();
+  }
+
   /* Empty placeholders until Phases 3 & 5 fill them from real data */
   function placeholderExtras() {
     return {
@@ -241,16 +269,16 @@ const SportsAPI = (() => {
     const isFinal = /final/i.test(status);
     const isScheduled = status.includes("T") || /sched/i.test(status);
     const live = !isFinal && !isScheduled;
-    const dateStr = String(raw.date || "").slice(0, 10);
+    const dateStr = localDate(raw.datetime || raw.status || raw.date);
 
     let time;
     if (isFinal) {
-      time = `FINAL · ${dateStr}`;
+      time = "FINAL";
     } else if (isScheduled) {
       const d = new Date(raw.datetime || raw.status || raw.date);
       time = isNaN(d)
-        ? `${status} · ${dateStr}`
-        : `${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${dateStr}`;
+        ? status
+        : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     } else {
       time = `LIVE · ${status}${raw.time ? " " + raw.time : ""}`;
     }
@@ -266,6 +294,8 @@ const SportsAPI = (() => {
     return {
       id: `${sport.toLowerCase()}-${raw.id}`,
       src: "live",
+      date: dateStr,
+      ts: gameTs(raw.datetime || raw.status || raw.date),
       time, live,
       away: team(raw.visitor_team, raw.visitor_team_score),
       home: team(raw.home_team, raw.home_team_score),
@@ -279,16 +309,16 @@ const SportsAPI = (() => {
     const isFinal = /FINAL/i.test(status);
     const isScheduled = /SCHEDULED/i.test(status);
     const live = !isFinal && !isScheduled;
-    const dateStr = String(raw.date || "").slice(0, 10);
+    const dateStr = localDate(raw.date);
 
     let time;
     if (isFinal) {
-      time = `FINAL · ${dateStr}`;
+      time = "FINAL";
     } else if (isScheduled) {
       const d = new Date(raw.date);
       time = isNaN(d)
         ? dateStr
-        : `${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${dateStr}`;
+        : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     } else {
       time = `LIVE · INN ${raw.period || "?"}`;
     }
@@ -304,6 +334,8 @@ const SportsAPI = (() => {
     return {
       id: `mlb-${raw.id}`,
       src: "live",
+      date: dateStr,
+      ts: gameTs(raw.date),
       time, live,
       away: team(raw.away_team, raw.away_team_data),
       home: team(raw.home_team, raw.home_team_data),
@@ -315,7 +347,7 @@ const SportsAPI = (() => {
             kickoff, status: "C"=complete, week } + separate teams map */
   function adaptEPL(raw, byId) {
     const kickoff = new Date(raw.kickoff);
-    const dateStr = String(raw.kickoff || "").slice(0, 10);
+    const dateStr = localDate(raw.kickoff);
     const isFinal = raw.status === "C";
     const isScheduled = !isFinal &&
       (raw.status === "PreMatch" || kickoff.getTime() > Date.now());
@@ -323,9 +355,9 @@ const SportsAPI = (() => {
 
     let time;
     if (isFinal) {
-      time = `FT · ${dateStr}`;
+      time = "FT";
     } else if (isScheduled) {
-      time = `${kickoff.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${dateStr}`;
+      time = kickoff.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     } else {
       time = `LIVE · ${raw.clock_display || ""}`;
     }
@@ -344,6 +376,8 @@ const SportsAPI = (() => {
     return {
       id: `epl-${raw.id}`,
       src: "live",
+      date: dateStr,
+      ts: gameTs(raw.kickoff),
       time, live,
       away: team(raw.away_team_id, raw.away_score),
       home: team(raw.home_team_id, raw.home_score),
@@ -361,18 +395,18 @@ const SportsAPI = (() => {
     const isFinal = st.state === "post";
     const isScheduled = st.state === "pre";
     const live = st.state === "in";
-    const dateStr = String(ev.date || "").slice(0, 10);
+    const dateStr = localDate(ev.date);
 
     let time;
     if (isFinal) {
-      time = `FINAL · ${dateStr}`;
+      time = "FINAL";
     } else if (live) {
       time = `LIVE · ${st.detail || ""}`;
     } else {
       const d = new Date(ev.date);
       time = isNaN(d)
         ? dateStr
-        : `${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${dateStr}`;
+        : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     }
 
     const team = (c) => ({
@@ -386,6 +420,8 @@ const SportsAPI = (() => {
     return {
       id: `${sport.toLowerCase()}-espn-${ev.id}`,
       src: "live",
+      date: dateStr,
+      ts: gameTs(ev.date),
       time, live,
       away: team(awayC),
       home: team(homeC),
@@ -402,48 +438,55 @@ const SportsAPI = (() => {
     return res.json();
   }
 
-  /* Shared: date-based leagues. Fetch candidates in ONE request, keep
-     the most recent date that has games (offseason-safe). */
+  /* Shared: date-based leagues. Fetches every game in the window
+     (following pagination cursors) and returns them oldest→newest. */
   async function fetchByDates(league, dates, adapt) {
-    const params = new URLSearchParams({ league, per_page: "100" });
-    dates.forEach((d) => params.append("dates[]", d));
-    const json = await proxyJSON(params);
-    const games = json.data || [];
+    let games = [], cursor = null, pages = 0;
+    do {
+      const params = new URLSearchParams({ league, per_page: "100" });
+      dates.forEach((d) => params.append("dates[]", d));
+      if (cursor != null) params.set("cursor", String(cursor));
+      const json = await proxyJSON(params);
+      games = games.concat(json.data || []);
+      cursor = json.meta?.next_cursor ?? null;
+      pages++;
+    } while (cursor != null && pages < 4);
+
     if (!games.length) throw new Error("no games returned");
-    const latest = games.map((g) => String(g.date).slice(0, 10)).sort().pop();
-    return games
-      .filter((g) => String(g.date).slice(0, 10) === latest)
-      .map(adapt);
+    return games.map(adapt).sort((a, b) => a.ts - b.ts);
+  }
+
+  /* Two-week window first; if the league is in its offseason and the
+     window is empty, show its most recent championship round instead. */
+  async function fetchWindowOrFallback(league, fallbackDates, adapt) {
+    try {
+      return await fetchByDates(league, datesAround(7, 7), adapt);
+    } catch {
+      return fetchByDates(league, fallbackDates, adapt);
+    }
   }
 
   const LIVE_FETCHERS = {
-    NBA: () => fetchByDates(
+    NBA: () => fetchWindowOrFallback(
       "nba",
-      // today + 2 back, then last season's Finals window
-      [...recentDates(3),
-       "2026-06-04", "2026-06-06", "2026-06-08", "2026-06-11", "2026-06-14"],
+      ["2026-06-04", "2026-06-06", "2026-06-08", "2026-06-11", "2026-06-14"],
       (g) => adaptVH(g, "NBA")
     ),
-    NFL: () => fetchByDates(
+    NFL: () => fetchWindowOrFallback(
       "nfl",
-      // today + 2 back, then last season's playoffs/Super Bowl
-      [...recentDates(3),
-       "2026-02-08", "2026-01-25", "2026-01-18", "2026-01-11"],
+      ["2026-01-11", "2026-01-18", "2026-01-25", "2026-02-08"],
       (g) => adaptVH(g, "NFL")
     ),
-    MLB: () => fetchByDates(
-      "mlb",
-      recentDates(7), // in-season: last week always has games
-      adaptMLB
-    ),
+    MLB: () => fetchByDates("mlb", datesAround(7, 7), adaptMLB),
     NHL: async () => {
       // balldontlie's NHL needs a paid tier, so NHL comes from ESPN's
-      // scoreboard instead. Try the last 10 days; if the offseason is
-      // empty, fall back to the most recent Stanley Cup Final window.
+      // scoreboard instead. Two-week window; if the offseason is
+      // empty, fall back to the most recent Stanley Cup Final.
       const ymd = (d) => iso(d).replace(/-/g, "");
       const now = new Date();
-      const back = new Date(); back.setDate(back.getDate() - 10);
-      const ranges = [`${ymd(back)}-${ymd(now)}`];
+      const back = new Date(); back.setDate(back.getDate() - 7);
+      const fwd = new Date(); fwd.setDate(fwd.getDate() + 7);
+      const ranges = [`${ymd(back)}-${ymd(fwd)}`];
       const year = now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear();
       ranges.push(`${year}0520-${year}0701`);
 
@@ -453,11 +496,7 @@ const SportsAPI = (() => {
         const json = await res.json();
         const events = json.events || [];
         if (!events.length) continue;
-        // keep only the most recent day that has games
-        const latest = events.map((e) => String(e.date).slice(0, 10)).sort().pop();
-        return events
-          .filter((e) => String(e.date).slice(0, 10) === latest)
-          .map((e) => adaptESPNEvent(e, "NHL"));
+        return events.map((e) => adaptESPNEvent(e, "NHL")).sort((a, b) => a.ts - b.ts);
       }
       throw new Error("no games returned");
     },

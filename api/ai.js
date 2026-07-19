@@ -15,8 +15,9 @@ const SYSTEM_PROMPT =
   "You are the research assistant inside SmartBet Analytics, a sports " +
   "betting research dashboard built as a student project. You explain " +
   "matchups using the game data provided: records, form, home/road " +
-  "splits, streaks, injuries, and betting lines. Be concise (under 120 " +
-  "words), factual, and neutral. Explain what the numbers mean for the " +
+  "splits, streaks, injuries, and betting lines. Give complete, focused " +
+  "answers (a solid paragraph or two, up to ~200 words). Be factual and " +
+  "neutral. Explain what the numbers mean for the " +
   "matchup. NEVER guarantee outcomes, never tell the user what to bet, " +
   "and remind them research is not a prediction if they ask for a lock. " +
   "Plain text only — no markdown headers or bullet lists.";
@@ -58,7 +59,7 @@ module.exports = async (req, res) => {
       role: "user",
       parts: [{ text: `Game data:\n${ctx}\n\nQuestion: ${q}` }]
     }],
-    generationConfig: { temperature: 0.6, maxOutputTokens: 512 }
+    generationConfig: { temperature: 0.6, maxOutputTokens: 2048 }
   });
 
   let lastError = "no model candidates";
@@ -79,8 +80,10 @@ module.exports = async (req, res) => {
         continue; // retired/unknown model name — try the next candidate
       }
 
-      const text = body?.candidates?.[0]?.content?.parts
-        ?.map((p) => p.text).filter(Boolean).join("") || "";
+      // newer models interleave "thought" parts — keep only the answer
+      const text = (body?.candidates?.[0]?.content?.parts || [])
+        .filter((p) => p.text && !p.thought)
+        .map((p) => p.text).join("") || "";
       if (!text) { lastError = "empty response from Gemini"; continue; }
 
       globalThis.__workingModel = model; // warm lambda: skip dead names next time

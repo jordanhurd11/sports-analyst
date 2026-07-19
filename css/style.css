@@ -248,7 +248,31 @@ body {
 }
 
 /* ===== Games list ===== */
-.games-list { display: flex; flex-direction: column; gap: 10px; }
+.games-list {
+  display: flex; flex-direction: column; gap: 10px;
+  max-height: 72vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  padding-right: 4px;
+}
+.date-divider {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .18em;
+  color: var(--text-dim);
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 6px;
+  position: sticky; top: 0; z-index: 2;
+  background: var(--bg-solid);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.date-divider.focus { color: var(--accent); }
+.date-divider::after {
+  content: "";
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border-bright), transparent);
+}
 .game-card {
   position: relative;
   overflow: hidden;
