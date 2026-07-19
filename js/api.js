@@ -269,13 +269,16 @@ const SportsAPI = (() => {
     const isFinal = /final/i.test(status);
     const isScheduled = status.includes("T") || /sched/i.test(status);
     const live = !isFinal && !isScheduled;
-    const dateStr = localDate(raw.datetime || raw.status || raw.date);
+    // status is only usable as a timestamp when it IS one (scheduled
+    // games) — otherwise it's text like "Final" and must be skipped
+    const when = raw.datetime || (status.includes("T") ? status : raw.date);
+    const dateStr = localDate(when);
 
     let time;
     if (isFinal) {
       time = "FINAL";
     } else if (isScheduled) {
-      const d = new Date(raw.datetime || raw.status || raw.date);
+      const d = new Date(when);
       time = isNaN(d)
         ? status
         : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -295,7 +298,7 @@ const SportsAPI = (() => {
       id: `${sport.toLowerCase()}-${raw.id}`,
       src: "live",
       date: dateStr,
-      ts: gameTs(raw.datetime || raw.status || raw.date),
+      ts: gameTs(when),
       time, live,
       away: team(raw.visitor_team, raw.visitor_team_score),
       home: team(raw.home_team, raw.home_team_score),
