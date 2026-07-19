@@ -439,14 +439,27 @@ const SportsAPI = (() => {
   }
 
   /* Shared: date-based leagues. Fetches every game in the window
-     (following pagination cursors) and returns them oldest→newest. */
+     (following pagination cursors) and returns them oldest→newest.
+     Rate-limit hardened: a 429 mid-pagination keeps the pages we
+     already have; a 429 on the first page waits out the window once. */
   async function fetchByDates(league, dates, adapt) {
     let games = [], cursor = null, pages = 0;
     do {
       const params = new URLSearchParams({ league, per_page: "100" });
       dates.forEach((d) => params.append("dates[]", d));
       if (cursor != null) params.set("cursor", String(cursor));
-      const json = await proxyJSON(params);
+      let json;
+      try {
+        json = await proxyJSON(params);
+      } catch (err) {
+        if (games.length) break;               // partial window beats nothing
+        if (/429/.test(err.message) && pages === 0) {
+          await new Promise((r) => setTimeout(r, 12_000));
+          json = await proxyJSON(params);      // one patient retry
+        } else {
+          throw err;
+        }
+      }
       games = games.concat(json.data || []);
       cursor = json.meta?.next_cursor ?? null;
       pages++;
@@ -1079,9 +1092,10 @@ const SportsAPI = (() => {
     const fetcher = LIVE_FETCHERS[sport];
 
     if (PROXY && fetcher) {
-      // 60s TTL so live scores refresh instead of freezing all session
+      // 5 min TTL: tab switches stay instant and cheap (rate limit!) —
+      // the 60s pollLive keeps the visible day's scores fresh anyway
       const hit = cache[sport];
-      if (hit && Date.now() - hit.at < 60_000) {
+      if (hit && Date.now() - hit.at < 300_000) {
         lastSource = `LIVE · ${sport}`;
         return hit.games;
       }
