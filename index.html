@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=19" />
+  <link rel="stylesheet" href="css/style.css?v=21" />
 </head>
 <body>
   <!-- ===== Ambient background FX ===== -->
@@ -39,8 +39,13 @@
     <!-- ===== Left: games list ===== -->
     <section class="panel games-panel">
       <div class="panel-head">
-        <h2>Today's Games</h2>
+        <h2>Games</h2>
         <span class="pill" id="gamesCount">0</span>
+      </div>
+      <div class="date-bar">
+        <button id="datePrev" class="date-arrow" title="Previous day">‹</button>
+        <input type="date" id="datePick" class="date-input" />
+        <button id="dateNext" class="date-arrow" title="Next day">›</button>
       </div>
       <div class="games-list" id="gamesList" aria-live="polite">
         <!-- game cards injected by app.js -->
@@ -146,6 +151,6 @@
   <script src="js/api.js?v=18"></script>
   <script src="js/tracker.js?v=15"></script>
   <script src="js/favorites.js?v=15"></script>
-  <script src="js/app.js?v=20"></script>
+  <script src="js/app.js?v=21"></script>
 </body>
 </html>

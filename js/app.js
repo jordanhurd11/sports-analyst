@@ -10,6 +10,9 @@ const els = {
   gamesCount: document.getElementById("gamesCount"),
   detailEmpty:document.getElementById("detailEmpty"),
   gameDetail: document.getElementById("gameDetail"),
+  datePrev:   document.getElementById("datePrev"),
+  datePick:   document.getElementById("datePick"),
+  dateNext:   document.getElementById("dateNext"),
   favBtn:     document.getElementById("favGameBtn"),
   favList:    document.getElementById("favoritesList"),
   favCount:   document.getElementById("favCount"),
@@ -24,7 +27,13 @@ const els = {
   betsList:   document.getElementById("betsList"),
 };
 
-const state = { sport: null, games: [], selected: null };
+const state = { sport: null, games: [], allGames: [], date: null, selected: null };
+
+/* Local YYYY-MM-DD for a Date (or today) */
+function localISO(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 /* Convert "#RRGGBB" to a low-alpha rgba() for background tints */
 function tint(hex, alpha) {
@@ -78,7 +87,16 @@ async function selectSport(sport) {
   state.selected = null;
 
   try {
-    state.games = await SportsAPI.getGames(sport);
+    state.allGames = await SportsAPI.getGames(sport);
+    // default to today, else the nearest date that has games
+    const today = localISO();
+    const dates = [...new Set(state.allGames.map((g) => g.date || today))];
+    state.date = dates.includes(today)
+      ? today
+      : dates.sort((a, b) =>
+          Math.abs(new Date(a) - new Date(today)) -
+          Math.abs(new Date(b) - new Date(today)))[0] || today;
+    els.datePick.value = state.date;
     renderGamesList();
   } catch (err) {
     els.gamesList.innerHTML =
@@ -89,36 +107,21 @@ async function selectSport(sport) {
 
 /* ---------- Games list ---------- */
 function renderGamesList() {
+  // show only the selected date's games; the full two-week window
+  // stays in state.allGames for instant date switching
+  const today = localISO();
+  state.games = state.allGames.filter((g) => (g.date || today) === state.date);
+
   els.gamesCount.textContent = state.games.length;
   if (!state.games.length) {
-    els.gamesList.innerHTML = `<div class="placeholder-note">No games listed.</div>`;
+    els.gamesList.innerHTML =
+      `<div class="placeholder-note">No games on this date — use the arrows to browse.</div>`;
     return;
   }
 
-  // date headers: games arrive oldest→newest; label each day's group
-  const pad = (n) => String(n).padStart(2, "0");
-  const rel = (offset) => {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  };
-  const names = { [rel(-1)]: "Yesterday", [rel(0)]: "Today", [rel(1)]: "Tomorrow" };
-  const dateLabel = (d) => names[d] ||
-    new Date(d + "T12:00:00").toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-
-  const todayISO = rel(0);
-  let html = "", prevDate = null, focusMarked = false;
-  state.games.forEach((g, idx) => {
-    const gd = g.date || todayISO;
-    if (gd !== prevDate) {
-      // first group at/after today gets flagged so we can scroll to it
-      const focus = !focusMarked && gd >= todayISO;
-      if (focus) focusMarked = true;
-      html += `<div class="date-divider ${focus ? "focus" : ""}">${dateLabel(gd)}</div>`;
-      prevDate = gd;
-    }
+  els.gamesList.innerHTML = state.games.map((g, idx) => {
     const dc = displayColors(g);
-    html += `
+    return `
     <div class="game-card anim-in ${g.live ? "live" : ""}" data-id="${g.id}"
          style="--i:${Math.min(idx, 8)}; --away-t:${tint(dc.away.g1, 0.16)}; --home-t:${tint(dc.home.g1, 0.16)}">
       <div class="gc-time">${g.time}</div>
@@ -131,25 +134,12 @@ function renderGamesList() {
         <span class="gc-score">${g.home.score ?? ""}</span>
       </div>
     </div>`;
-  });
-  els.gamesList.innerHTML = html;
+  }).join("");
 
   els.gamesList.querySelectorAll(".game-card").forEach((card) => {
     card.addEventListener("click", () => selectGame(card.dataset.id));
   });
-
-  // land the scroll on today (or the next day with games). Scroll
-  // anchoring fights us while the cards' entrance animations shift
-  // layout, so jump immediately AND re-assert once they settle.
-  const focusEl = els.gamesList.querySelector(".date-divider.focus");
-  if (focusEl) {
-    const jump = () => els.gamesList.scrollTo({
-      top: focusEl.offsetTop - els.gamesList.offsetTop - 4,
-      behavior: "instant"
-    });
-    requestAnimationFrame(jump);
-    setTimeout(jump, 1350); // after the last stagger delay + animation
-  }
+  els.gamesList.scrollTop = 0;
 }
 
 /* ---------- Game detail ---------- */
@@ -291,6 +281,24 @@ function renderFavorites() {
       renderFavorites();
     })
   );
+}
+
+/* ---------- Date bar ---------- */
+function initDateBar() {
+  const shift = (days) => {
+    const d = new Date((els.datePick.value || localISO()) + "T12:00:00");
+    d.setDate(d.getDate() + days);
+    els.datePick.value = localISO(d);
+    state.date = els.datePick.value;
+    renderGamesList();
+  };
+  els.datePrev.addEventListener("click", () => shift(-1));
+  els.dateNext.addEventListener("click", () => shift(1));
+  els.datePick.addEventListener("change", () => {
+    if (!els.datePick.value) return;
+    state.date = els.datePick.value;
+    renderGamesList();
+  });
 }
 
 /* ---------- AI assistant ---------- */
@@ -442,6 +450,7 @@ function init() {
   initTracker();
   renderTracker();
   initAssistant();
+  initDateBar();
   selectSport(state.sport);   // load first sport
 }
 document.addEventListener("DOMContentLoaded", init);
