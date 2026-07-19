@@ -138,16 +138,17 @@ function renderGamesList() {
     card.addEventListener("click", () => selectGame(card.dataset.id));
   });
 
-  // land the scroll on today (or the next day with games) — after the
-  // browser has laid the list out, and instantly so nothing cancels it
+  // land the scroll on today (or the next day with games). Scroll
+  // anchoring fights us while the cards' entrance animations shift
+  // layout, so jump immediately AND re-assert once they settle.
   const focusEl = els.gamesList.querySelector(".date-divider.focus");
   if (focusEl) {
-    requestAnimationFrame(() => {
-      els.gamesList.scrollTo({
-        top: focusEl.offsetTop - els.gamesList.offsetTop - 4,
-        behavior: "instant"
-      });
+    const jump = () => els.gamesList.scrollTo({
+      top: focusEl.offsetTop - els.gamesList.offsetTop - 4,
+      behavior: "instant"
     });
+    requestAnimationFrame(jump);
+    setTimeout(jump, 1350); // after the last stagger delay + animation
   }
 }
 
