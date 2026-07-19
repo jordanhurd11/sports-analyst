@@ -293,6 +293,7 @@ body {
 .game-card {
   position: relative;
   overflow: hidden;
+  flex-shrink: 0; /* never let the scrolling flex column squash cards */
   background: var(--bg-elevated);
   /* two-tone wash: away color sweeps from the left, home from the right */
   background-image:
