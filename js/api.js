@@ -993,19 +993,27 @@ const SportsAPI = (() => {
         : g.away.score - g.home.score), 0);
       return Math.round((sum / gs.length) * 10) / 10;
     };
-    const sign = (v) => (v > 0 ? `+${v}` : `${v}`);
     const trends = { ...game.trends };
 
+    // spelled out so "+" can't be misread: wins by / loses by
+    const worded = (abbr, v) =>
+      v === 0 ? `${abbr} even`
+      : v > 0 ? `${abbr} wins by ${v}`
+      : `${abbr} loses by ${Math.abs(v)}`;
     const am = marginFor(game.away), hm = marginFor(game.home);
     if (am != null && hm != null) {
-      trends.ats = `${game.away.abbr} ${sign(am)} · ${game.home.abbr} ${sign(hm)}`;
+      trends.ats = `${worded(game.away.abbr, am)} · ${worded(game.home.abbr, hm)}`;
     }
 
+    // combined points/runs per game (both sides added together),
+    // averaged across both teams' completed games in the window
     const totals = [...recentFor(game.away), ...recentFor(game.home)]
       .map((g) => g.away.score + g.home.score);
     if (totals.length >= 3) {
       const avg = Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10;
-      trends.ou = game.totRaw != null ? `Avg ${avg} · line ${game.totRaw}` : `Avg ${avg}`;
+      trends.ou = game.totRaw != null
+        ? `${avg} combined · line ${game.totRaw}`
+        : `${avg} combined per game`;
     }
 
     if (game.mlRaw && game.mlRaw.away != null && game.mlRaw.home != null) {

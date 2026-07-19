@@ -252,8 +252,8 @@ function renderDetail(g) {
   // plus market math; demo games keep their sample text
   const liveTrends = g.src === "live";
   document.getElementById("trendsGrid").innerHTML =
-    trCell(liveTrends ? "Avg Margin · Last 14 Days" : "Against the Spread", tr.ats) +
-    trCell(liveTrends ? "Avg Total · Last 14 Days" : "Over / Under", tr.ou) +
+    trCell(liveTrends ? "Avg Win/Loss Margin · Last 14 Days" : "Against the Spread", tr.ats) +
+    trCell(liveTrends ? "Avg Combined Score · Last 14 Days" : "Over / Under", tr.ou) +
     trCell(liveTrends ? "Implied Win % · Live Line" : "Public Betting", tr.public) +
     trCell("Line Movement", tr.line);
 
