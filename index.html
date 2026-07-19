@@ -69,10 +69,16 @@
           <div class="team-block" id="homeBlock"></div>
         </div>
 
-        <!-- Betting lines -->
+        <!-- Betting lines (current / live) -->
         <div class="detail-section">
-          <h3>Betting Lines <span class="tag" id="oddsTag">demo</span></h3>
+          <h3><span id="oddsTitle">Betting Lines</span> <span class="tag" id="oddsTag">demo</span></h3>
           <div class="odds-grid" id="oddsGrid"></div>
+        </div>
+
+        <!-- Starting (pregame) lines — shown once a game is underway -->
+        <div class="detail-section" id="startOddsSection" hidden>
+          <h3>Starting Odds <span class="tag">pregame</span></h3>
+          <div class="odds-grid" id="startOddsGrid"></div>
         </div>
 
         <!-- Team info -->
@@ -148,9 +154,9 @@
 
   <!-- Load order: public config → data source → features → wiring -->
   <script src="js/config.js?v=11"></script>
-  <script src="js/api.js?v=23"></script>
+  <script src="js/api.js?v=24"></script>
   <script src="js/tracker.js?v=15"></script>
   <script src="js/favorites.js?v=15"></script>
-  <script src="js/app.js?v=23"></script>
+  <script src="js/app.js?v=24"></script>
 </body>
 </html>

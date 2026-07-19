@@ -808,44 +808,89 @@ const SportsAPI = (() => {
         p: fetch(`${PROXY}/odds?sport=${key}`)
           .then((r) => (r.ok ? r.json() : []))
           .then((j) => (Array.isArray(j) ? j : []))
+          .then((events) => { snapshotPregame(events); return events; })
           .catch(() => [])
       };
     }
     return oddsCache[sport].p;
   }
 
-  /* Opening lines: the free tier has no odds history, so we record the
-     FIRST line this browser sees per game (localStorage) and show
-     movement relative to that. Old entries are swept after 3 days. */
+  /* Starting lines: the free tier has no odds history, so we snapshot
+     the pregame line for EVERY not-yet-started game each time odds are
+     fetched. When a game later goes live, its true pregame line is
+     already saved. Games first seen mid-game honestly have none. */
   try {
     const cutoff = Date.now() - 3 * 24 * 3600 * 1000;
     Object.keys(localStorage)
-      .filter((k) => k.startsWith("smartbet.open."))
+      .filter((k) => k.startsWith("smartbet.open.") || k.startsWith("smartbet.pre."))
       .forEach((k) => {
         try {
           const v = JSON.parse(localStorage.getItem(k));
-          if (!v || !v.at || v.at < cutoff) localStorage.removeItem(k);
+          if (!v || !v.at || v.at < cutoff || k.startsWith("smartbet.open.")) {
+            localStorage.removeItem(k); // also clears the old format
+          }
         } catch { localStorage.removeItem(k); }
       });
   } catch { /* localStorage unavailable */ }
 
-  function trackOpeningLine(game, odds) {
-    try {
-      const k = `smartbet.open.${game.id}`;
-      let open = JSON.parse(localStorage.getItem(k) || "null");
-      if (!open) {
-        open = { spread: odds.spread, moneyline: odds.moneyline,
-                 total: odds.total, at: Date.now() };
-        localStorage.setItem(k, JSON.stringify(open));
+  /* Pull the raw market numbers out of an odds event —
+     not every bookmaker carries every market, so search them all */
+  function extractRaw(ev) {
+    const market = (key) => {
+      for (const b of ev.bookmakers || []) {
+        const m = (b.markets || []).find((x) => x.key === key);
+        if (m && m.outcomes?.length) return m;
       }
-      game.oddsOpen = open;
-      game.trends = {
-        ...game.trends,
-        line: open.spread !== odds.spread
-          ? `Opened ${open.spread} → now ${odds.spread}`
-          : `Steady at ${odds.spread === "—" ? odds.moneyline : odds.spread}`
-      };
-    } catch { /* localStorage unavailable — skip movement tracking */ }
+      return null;
+    };
+    const raw = {};
+    const h2h = market("h2h");
+    if (h2h) {
+      raw.mlAway = h2h.outcomes.find((o) => o.name === ev.away_team)?.price;
+      raw.mlHome = h2h.outcomes.find((o) => o.name === ev.home_team)?.price;
+    }
+    const spreads = market("spreads");
+    if (spreads) {
+      const fav = spreads.outcomes.find((o) => o.point < 0) || spreads.outcomes[0];
+      if (fav && fav.point != null) raw.sp = { name: fav.name, point: fav.point };
+    }
+    const totals = market("totals");
+    if (totals) {
+      const over = totals.outcomes.find((o) => o.name === "Over");
+      if (over && over.point != null) raw.tot = over.point;
+    }
+    return raw;
+  }
+
+  function fmtLines(raw, ev, awayAbbr, homeAbbr) {
+    const fmt = (p) => (p > 0 ? `+${p}` : `${p}`);
+    const odds = { spread: "—", moneyline: "—", total: "—" };
+    if (raw.mlAway != null && raw.mlHome != null) {
+      odds.moneyline = `${awayAbbr} ${fmt(raw.mlAway)} / ${homeAbbr} ${fmt(raw.mlHome)}`;
+    }
+    if (raw.sp) {
+      const abbr = raw.sp.name === ev.home_team ? homeAbbr : awayAbbr;
+      odds.spread = `${abbr} ${raw.sp.point > 0 ? "+" : ""}${raw.sp.point}`;
+    }
+    if (raw.tot != null) odds.total = `O/U ${raw.tot}`;
+    return odds;
+  }
+
+  /* Save the pregame line for every event that hasn't started yet.
+     First capture wins — that's the closest we have to the opener. */
+  function snapshotPregame(events) {
+    try {
+      const now = Date.now();
+      events.forEach((ev) => {
+        const commence = Date.parse(ev.commence_time);
+        if (!(commence > now)) return;
+        const k = `smartbet.pre.${ev.id}`;
+        if (localStorage.getItem(k)) return;
+        const raw = extractRaw(ev);
+        if (!raw.sp && raw.mlAway == null && raw.tot == null) return;
+        localStorage.setItem(k, JSON.stringify({ ...raw, at: now, commence }));
+      });
+    } catch { /* localStorage unavailable */ }
   }
 
   /* Apply live market lines to a game if a bookmaker offers them.
@@ -861,44 +906,38 @@ const SportsAPI = (() => {
       (e.away_team || "").toLowerCase().includes(nickA));
     if (!ev) return;
 
-    // not every bookmaker carries every market — search them all
-    const market = (key) => {
-      for (const b of ev.bookmakers || []) {
-        const m = (b.markets || []).find((x) => x.key === key);
-        if (m && m.outcomes?.length) return m;
-      }
-      return null;
-    };
-    const fmt = (p) => (p > 0 ? `+${p}` : `${p}`);
-    const odds = { spread: "—", moneyline: "—", total: "—" };
+    const raw = extractRaw(ev);
+    const odds = fmtLines(raw, ev, game.away.abbr, game.home.abbr);
+    if (odds.moneyline === "—" && odds.spread === "—" && odds.total === "—") return;
 
-    const h2h = market("h2h");
-    if (h2h) {
-      const ao = h2h.outcomes.find((o) => o.name === ev.away_team);
-      const ho = h2h.outcomes.find((o) => o.name === ev.home_team);
-      if (ao && ho) {
-        odds.moneyline = `${game.away.abbr} ${fmt(ao.price)} / ${game.home.abbr} ${fmt(ho.price)}`;
-      }
-    }
-    const spreads = market("spreads");
-    if (spreads) {
-      const fav = spreads.outcomes.find((o) => o.point < 0) || spreads.outcomes[0];
-      if (fav && fav.point != null) {
-        const abbr = fav.name === ev.home_team ? game.home.abbr : game.away.abbr;
-        odds.spread = `${abbr} ${fav.point > 0 ? "+" : ""}${fav.point}`;
-      }
-    }
-    const totals = market("totals");
-    if (totals) {
-      const over = totals.outcomes.find((o) => o.name === "Over");
-      if (over && over.point != null) odds.total = `O/U ${over.point}`;
-    }
+    game.odds = odds;
+    game.oddsLive = true;
 
-    if (odds.moneyline !== "—" || odds.spread !== "—" || odds.total !== "—") {
-      game.odds = odds;
-      game.oddsLive = true;
-      trackOpeningLine(game, odds);
-    }
+    // Starting (pregame) odds — from the snapshot store
+    try {
+      const commence = Date.parse(ev.commence_time);
+      const started = commence <= Date.now();
+      const stored = JSON.parse(
+        localStorage.getItem(`smartbet.pre.${ev.id}`) || "null");
+
+      if (!started) {
+        // hasn't started: today's line IS the starting line
+        game.oddsStart = odds;
+      } else if (stored && stored.at <= commence) {
+        game.oddsStart = fmtLines(stored, ev, game.away.abbr, game.home.abbr);
+      } else {
+        game.oddsStart = null; // first saw this game after tip-off
+      }
+
+      if (started && game.oddsStart) {
+        game.trends = {
+          ...game.trends,
+          line: game.oddsStart.spread !== odds.spread
+            ? `Started ${game.oddsStart.spread} → now ${odds.spread}`
+            : `Steady at ${odds.spread === "—" ? odds.moneyline : odds.spread}`
+        };
+      }
+    } catch { /* localStorage unavailable */ }
   }
 
   /* Silent refresh of a single day — one cheap request, used by the

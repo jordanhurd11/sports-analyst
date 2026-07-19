@@ -193,23 +193,32 @@ function renderDetail(g) {
   els.gameDetail.style.setProperty("--away-t", tint(dc.away.g1, 0.18));
   els.gameDetail.style.setProperty("--home-t", tint(dc.home.g1, 0.18));
 
-  // Odds — tag reflects where the lines came from; when live, show the
-  // opening line (first seen by this browser) under the current one
+  // Odds — two sections once a game is underway: the in-play market on
+  // top, the captured pregame line below it
+  const started = g.live || /^(FINAL|FT)/.test(g.time);
+  document.getElementById("oddsTitle").textContent =
+    g.oddsLive && started ? "Live Odds" : "Betting Lines";
   document.getElementById("oddsTag").textContent =
-    g.oddsLive ? "live" : (g.src === "live" ? "no market" : "demo");
-  const openSub = (cur, open) => {
-    if (!g.oddsLive || !g.oddsOpen || open == null) return "";
-    return open === cur
-      ? `<div class="oc-sub">open · unchanged</div>`
-      : `<div class="oc-sub">open ${open}</div>`;
-  };
-  document.getElementById("oddsGrid").innerHTML = `
-    <div class="odds-cell"><div class="oc-label">Spread</div>
-      <div class="oc-val">${g.odds.spread}</div>${openSub(g.odds.spread, g.oddsOpen?.spread)}</div>
-    <div class="odds-cell"><div class="oc-label">Moneyline</div>
-      <div class="oc-val" style="font-size:13px">${g.odds.moneyline}</div>${openSub(g.odds.moneyline, g.oddsOpen?.moneyline)}</div>
-    <div class="odds-cell"><div class="oc-label">Total</div>
-      <div class="oc-val">${g.odds.total}</div>${openSub(g.odds.total, g.oddsOpen?.total)}</div>`;
+    g.oddsLive ? (started ? "in-play" : "pregame")
+               : (g.src === "live" ? "no market" : "demo");
+  const oddsCells = (o) => `
+    <div class="odds-cell"><div class="oc-label">Spread</div><div class="oc-val">${o.spread}</div></div>
+    <div class="odds-cell"><div class="oc-label">Moneyline</div><div class="oc-val" style="font-size:13px">${o.moneyline}</div></div>
+    <div class="odds-cell"><div class="oc-label">Total</div><div class="oc-val">${o.total}</div></div>`;
+  document.getElementById("oddsGrid").innerHTML = oddsCells(g.odds);
+
+  const startSection = document.getElementById("startOddsSection");
+  if (g.oddsLive && started) {
+    startSection.hidden = false;
+    document.getElementById("startOddsGrid").innerHTML = g.oddsStart
+      ? oddsCells(g.oddsStart)
+      : `<div class="placeholder-note" style="grid-column:1/-1">
+           Pregame line wasn't captured — this game was already live the
+           first time it was seen (the free odds tier has no history).
+         </div>`;
+  } else {
+    startSection.hidden = true;
+  }
 
   // Team info
   const ti = g.teamInfo;
