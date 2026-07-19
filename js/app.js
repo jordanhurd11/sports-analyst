@@ -138,9 +138,17 @@ function renderGamesList() {
     card.addEventListener("click", () => selectGame(card.dataset.id));
   });
 
-  // land the scroll on today (or the next day with games)
+  // land the scroll on today (or the next day with games) — after the
+  // browser has laid the list out, and instantly so nothing cancels it
   const focusEl = els.gamesList.querySelector(".date-divider.focus");
-  if (focusEl) els.gamesList.scrollTop = focusEl.offsetTop - els.gamesList.offsetTop - 4;
+  if (focusEl) {
+    requestAnimationFrame(() => {
+      els.gamesList.scrollTo({
+        top: focusEl.offsetTop - els.gamesList.offsetTop - 4,
+        behavior: "instant"
+      });
+    });
+  }
 }
 
 /* ---------- Game detail ---------- */
