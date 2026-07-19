@@ -345,10 +345,12 @@ function renderCharts(g, dc) {
     const hb = document.getElementById("probHome");
     ab.style.background = dc.away.font;
     hb.style.background = dc.home.font;
-    requestAnimationFrame(() => {
+    // setTimeout (not rAF — rAF stalls in background tabs) so the
+    // 0-width start state paints first and the fill animates in
+    setTimeout(() => {
       ab.style.width = `${na}%`;
       hb.style.width = `${100 - na}%`;
-    });
+    }, 60);
   } else {
     wrap.hidden = true;
   }
