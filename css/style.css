@@ -24,11 +24,12 @@
 
   /* type */
   --font-ui: "Space Grotesk", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
 
   /* shape */
-  --radius: 10px;
-  --gap: 18px;
+  --radius: 18px;
+  --gap: 20px;
   --glass-blur: blur(20px) saturate(150%);
   --chamfer: polygon(10px 0, 100% 0, 100% calc(100% - 10px),
                      calc(100% - 10px) 100%, 0 100%, 0 10px);
@@ -40,12 +41,13 @@
 [hidden] { display: none !important; }
 
 body {
-  font-family: var(--font-ui);
+  font-family: var(--font-body);
   background: var(--bg);
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.55;
   min-height: 100vh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* micro-label utility look, reused via selectors below */
@@ -164,6 +166,12 @@ body {
   padding: 14px 28px;
   overflow-x: auto;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 73px;               /* floats just under the sticky header */
+  z-index: 45;
+  background: rgba(4, 6, 11, 0.55);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 .sport-btn {
   font-family: var(--font-ui);
@@ -203,10 +211,21 @@ body {
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 18px;
+  padding: 22px;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  box-shadow: 0 10px 36px rgba(0,0,0,.32);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.04) inset,
+    0 10px 30px rgba(0,0,0,.30),
+    0 30px 80px rgba(0,0,0,.22);
+  transition: box-shadow .3s ease, border-color .3s ease;
+}
+.panel:hover {
+  border-color: var(--border-bright);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.05) inset,
+    0 14px 40px rgba(0,0,0,.36),
+    0 40px 100px rgba(0,0,0,.26);
 }
 /* corner brackets */
 .panel::before, .panel::after {
@@ -661,20 +680,29 @@ body {
 .bet-form input::placeholder { color: var(--text-dim); opacity: .7; }
 .bet-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .btn-add {
+  position: relative;
+  overflow: hidden;
   font-family: var(--font-ui);
-  background: linear-gradient(135deg, var(--accent), #00b3d6);
+  background: linear-gradient(135deg, var(--accent), #00b3d6, var(--violet));
+  background-size: 220% 220%;
   color: #021418;
   border: none;
-  clip-path: var(--chamfer);
-  padding: 9px 14px;
+  border-radius: 10px;
+  padding: 10px 16px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: filter .15s, transform .15s;
+  transition: filter .15s, transform .15s, box-shadow .2s, background-position .5s;
 }
-.btn-add:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.btn-add:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px) scale(1.02);
+  background-position: 100% 100%;
+  box-shadow: 0 6px 20px var(--accent-glow);
+}
+.btn-add:active { transform: translateY(0) scale(.97); }
 
 .bets-list {
   display: flex; flex-direction: column; gap: 8px;
@@ -734,6 +762,149 @@ body {
 }
 .disclaimer { margin-top: 6px; opacity: .6; }
 
+/* ===== Premium polish: ripple, skeletons, toasts, charts ===== */
+
+/* Ripple — JS drops a .ripple span at the click point */
+.sport-btn, .date-arrow, .bi-btn { position: relative; overflow: hidden; }
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .35);
+  transform: scale(0);
+  animation: rippleGo .55s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes rippleGo {
+  to { transform: scale(3); opacity: 0; }
+}
+
+/* Skeleton loading cards */
+.skel-card {
+  height: 92px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: linear-gradient(100deg,
+    var(--bg-elevated) 40%, rgba(120,160,220,.10) 50%, var(--bg-elevated) 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes shimmer {
+  0% { background-position: 120% 0; }
+  100% { background-position: -80% 0; }
+}
+
+/* Toasts */
+.toasts {
+  position: fixed;
+  bottom: 22px; right: 22px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 100;
+}
+.toast {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-bright);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text);
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  animation: toastIn .3s cubic-bezier(.2,.8,.3,1.1) both;
+}
+.toast.out { animation: toastOut .3s ease both; }
+@keyframes toastIn  { from { opacity: 0; transform: translateY(12px) scale(.96); } }
+@keyframes toastOut { to   { opacity: 0; transform: translateY(8px)  scale(.97); } }
+
+/* Win-rate ring */
+.stat-ring { position: relative; }
+.ring {
+  position: absolute;
+  inset: 4px auto auto 50%;
+  translate: -50% 0;
+  width: 44px; height: 44px;
+  transform: rotate(-90deg);
+  opacity: .9;
+}
+.ring circle { fill: none; stroke-width: 3; }
+.ring-bg { stroke: rgba(120,160,220,.15); }
+.ring-fg {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dasharray: 119.4;
+  stroke-dashoffset: 119.4;
+  transition: stroke-dashoffset .8s cubic-bezier(.2,.7,.3,1);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+.stat-ring { padding-top: 14px; padding-bottom: 12px; }
+.stat-ring .stat-val { position: relative; z-index: 1; font-size: 13px; line-height: 26px; }
+
+/* Form chart — margin bars per game, per team */
+.form-chart {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.fc-team {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.fc-name {
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.fc-bars {
+  display: flex; align-items: flex-end; gap: 4px;
+  height: 72px;
+}
+.fc-bar {
+  flex: 1;
+  min-width: 4px;
+  border-radius: 3px;
+  transform-origin: center;
+  animation: barGrow .5s cubic-bezier(.2,.7,.3,1) both;
+  animation-delay: calc(var(--b, 0) * 45ms);
+}
+@keyframes barGrow { from { transform: scaleY(0); } }
+.fc-bar.win  { background: linear-gradient(180deg, var(--green), rgba(46,230,168,.35)); }
+.fc-bar.loss { background: linear-gradient(180deg, var(--danger), rgba(255,93,93,.35)); }
+.fc-axis {
+  height: 1px; background: var(--border-bright); margin: 2px 0 6px;
+}
+.fc-sub {
+  font-family: var(--font-mono);
+  font-size: 10px; color: var(--text-dim);
+}
+
+/* Implied-probability split bar */
+.prob-wrap { margin-top: 12px; }
+.prob-labels {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: var(--font-mono); font-size: 11px; margin-bottom: 6px;
+}
+.prob-title {
+  font-size: 9px; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .16em;
+}
+.prob-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.prob-away, .prob-home {
+  height: 100%;
+  width: 0;
+  transition: width .8s cubic-bezier(.2,.7,.3,1);
+}
+
 /* ===== Custom scrollbar ===== */
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -764,5 +935,5 @@ body {
   .layout { padding: var(--gap) 14px; }
   .side-col { grid-template-columns: 1fr; }
   .odds-grid { grid-template-columns: 1fr; }
-  .teaminfo-grid, .trends-grid { grid-template-columns: 1fr; }
+  .teaminfo-grid, .trends-grid, .form-chart { grid-template-columns: 1fr; }
 }

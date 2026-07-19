@@ -81,7 +81,8 @@ async function selectSport(sport) {
   els.sportNav.querySelectorAll(".sport-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.sport === sport)
   );
-  els.gamesList.innerHTML = `<div class="placeholder-note">Loading ${sport} games…</div>`;
+  els.gamesList.innerHTML =
+    Array.from({ length: 4 }, () => `<div class="skel-card"></div>`).join("");
   els.gameDetail.hidden = true;
   els.detailEmpty.hidden = false;
   state.selected = null;
@@ -257,6 +258,8 @@ function renderDetail(g) {
     trCell(liveTrends ? "Implied Win % · Live Line" : "Public Betting", tr.public) +
     trCell("Line Movement", tr.line);
 
+  renderCharts(g, dc);
+
   // AI placeholder (Phase 6 replaces with real generated text).
   // Words fade in one-by-one via the .ai-word stagger animation.
   const aiText =
@@ -272,7 +275,9 @@ function renderDetail(g) {
   // Favorite button
   updateFavBtn(g);
   els.favBtn.onclick = () => {
-    Favorites.toggle({ id: g.id, label: `${g.away.abbr} @ ${g.home.abbr}`, sport: state.sport });
+    const on = Favorites.toggle({ id: g.id, label: `${g.away.abbr} @ ${g.home.abbr}`, sport: state.sport });
+    showToast(on ? `Saved ${g.away.abbr} @ ${g.home.abbr} to favorites`
+                 : `Removed ${g.away.abbr} @ ${g.home.abbr}`);
     updateFavBtn(g);
     renderFavorites();
     // Star pop animation
@@ -280,6 +285,73 @@ function renderDetail(g) {
     void els.favBtn.offsetWidth;
     els.favBtn.classList.add("pop");
   };
+}
+
+/* ---------- Charts ---------- */
+// Form chart: one bar per completed game in the 14-day window, height
+// scaled to margin size, green = win / red = loss. Probability bar:
+// team-colored split of the market-implied win chances.
+function renderCharts(g, dc) {
+  const section = document.getElementById("formSection");
+  const finals = state.allGames.filter((x) =>
+    x.src === "live" && /^(FINAL|FT)/.test(x.time) &&
+    x.away.score != null && x.home.score != null);
+
+  const teamData = (team, color) => {
+    const games = finals.filter((x) =>
+      x.away.abbr === team.abbr || x.home.abbr === team.abbr);
+    const margins = games.map((x) => (x.home.abbr === team.abbr
+      ? x.home.score - x.away.score
+      : x.away.score - x.home.score));
+    return { margins, wins: margins.filter((m) => m > 0).length, color };
+  };
+  const away = teamData(g.away, dc.away.font);
+  const home = teamData(g.home, dc.home.font);
+
+  if (g.src !== "live" || away.margins.length + home.margins.length < 3) {
+    section.hidden = true;
+  } else {
+    section.hidden = false;
+    const maxAbs = Math.max(1,
+      ...away.margins.map(Math.abs), ...home.margins.map(Math.abs));
+    const teamHtml = (t, team) => `
+      <div class="fc-team">
+        <div class="fc-name" style="color:${t.color}">${team.abbr} ${team.name}</div>
+        <div class="fc-bars">
+          ${t.margins.map((m, i) => `<div class="fc-bar ${m > 0 ? "win" : "loss"}"
+             style="--b:${i}; height:${Math.max(10, Math.round(Math.abs(m) / maxAbs * 100))}%"
+             title="${m > 0 ? "Won by " + m : m < 0 ? "Lost by " + (-m) : "Tied"}"></div>`).join("")}
+        </div>
+        <div class="fc-axis"></div>
+        <div class="fc-sub">${t.wins}-${t.margins.length - t.wins} · green win / red loss · bar = margin</div>
+      </div>`;
+    document.getElementById("formChart").innerHTML =
+      teamHtml(away, g.away) + teamHtml(home, g.home);
+  }
+
+  const wrap = document.getElementById("probWrap");
+  if (g.mlRaw && g.mlRaw.away != null && g.mlRaw.home != null) {
+    const p = (o) => (o < 0 ? -o / (-o + 100) : 100 / (o + 100));
+    const pa = p(g.mlRaw.away), ph = p(g.mlRaw.home);
+    const na = Math.round((pa / (pa + ph)) * 100);
+    wrap.hidden = false;
+    const al = document.getElementById("probAwayLabel");
+    const hl = document.getElementById("probHomeLabel");
+    al.textContent = `${g.away.abbr} ${na}%`;
+    al.style.color = dc.away.font;
+    hl.textContent = `${100 - na}% ${g.home.abbr}`;
+    hl.style.color = dc.home.font;
+    const ab = document.getElementById("probAway");
+    const hb = document.getElementById("probHome");
+    ab.style.background = dc.away.font;
+    hb.style.background = dc.home.font;
+    requestAnimationFrame(() => {
+      ab.style.width = `${na}%`;
+      hb.style.width = `${100 - na}%`;
+    });
+  } else {
+    wrap.hidden = true;
+  }
 }
 
 /* ---------- Favorites ---------- */
@@ -422,6 +494,9 @@ function renderTracker() {
   const s = BetTracker.stats();
   els.statBets.textContent = s.count;
   els.statWin.textContent = `${s.winPct}%`;
+  // animated progress ring around the win rate (circumference 119.4)
+  const ring = document.getElementById("winRing");
+  if (ring) ring.style.strokeDashoffset = 119.4 * (1 - s.winPct / 100);
   els.statNet.textContent = `${s.netUnits > 0 ? "+" : ""}${s.netUnits}u`;
   els.statNet.style.color =
     s.netUnits > 0 ? "var(--green)" : s.netUnits < 0 ? "var(--danger)" : "";
@@ -467,6 +542,7 @@ function initTracker() {
     BetTracker.add({ sport: state.sport, pick, odds, units });
     els.betForm.reset();
     renderTracker();
+    showToast(`Bet logged · ${pick}`);
   });
 
   // one delegated handler for result + delete buttons
@@ -483,6 +559,34 @@ function initTracker() {
     }
     renderTracker();
   });
+}
+
+/* ---------- Ripple clicks ---------- */
+// One delegated listener: any tap on a button-ish control drops an
+// expanding ripple at the click point (GPU transform only)
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".sport-btn, .btn-add, .date-arrow, .bi-btn");
+  if (!btn) return;
+  const r = btn.getBoundingClientRect();
+  const size = Math.max(r.width, r.height);
+  const span = document.createElement("span");
+  span.className = "ripple";
+  span.style.cssText = `width:${size}px;height:${size}px;` +
+    `left:${e.clientX - r.left - size / 2}px;top:${e.clientY - r.top - size / 2}px`;
+  btn.appendChild(span);
+  span.addEventListener("animationend", () => span.remove());
+});
+
+/* ---------- Toasts ---------- */
+function showToast(msg) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = msg;
+  document.getElementById("toasts").appendChild(el);
+  setTimeout(() => {
+    el.classList.add("out");
+    el.addEventListener("animationend", () => el.remove());
+  }, 2600);
 }
 
 /* ---------- Cursor spotlight ---------- */

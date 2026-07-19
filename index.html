@@ -6,8 +6,8 @@
   <title>SmartBet Analytics</title><!-- v4 -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=22" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css?v=31" />
 </head>
 <body>
   <!-- ===== Ambient background FX ===== -->
@@ -93,10 +93,27 @@
           <ul class="injury-list" id="injuryList"></ul>
         </div>
 
+        <!-- Form chart: each team's game margins over the last 14 days -->
+        <div class="detail-section" id="formSection" hidden>
+          <h3>Form · Last 14 Days <span class="tag">win/loss margin per game</span></h3>
+          <div class="form-chart" id="formChart"></div>
+        </div>
+
         <!-- Betting trends -->
         <div class="detail-section">
           <h3>Betting Trends</h3>
           <div class="trends-grid" id="trendsGrid"></div>
+          <div class="prob-wrap" id="probWrap" hidden>
+            <div class="prob-labels">
+              <span id="probAwayLabel"></span>
+              <span class="prob-title">market implied win %</span>
+              <span id="probHomeLabel"></span>
+            </div>
+            <div class="prob-bar">
+              <div class="prob-away" id="probAway"></div>
+              <div class="prob-home" id="probHome"></div>
+            </div>
+          </div>
         </div>
 
         <!-- AI assistant (Gemini via /api/ai) -->
@@ -129,7 +146,13 @@
         </form>
         <div class="stat-row">
           <div class="stat"><span class="stat-val" id="statBets">0</span><span class="stat-label">Bets</span></div>
-          <div class="stat"><span class="stat-val" id="statWin">0%</span><span class="stat-label">Win %</span></div>
+          <div class="stat stat-ring">
+            <svg class="ring" viewBox="0 0 44 44" aria-hidden="true">
+              <circle class="ring-bg" cx="22" cy="22" r="19"></circle>
+              <circle class="ring-fg" id="winRing" cx="22" cy="22" r="19"></circle>
+            </svg>
+            <span class="stat-val" id="statWin">0%</span><span class="stat-label">Win %</span>
+          </div>
           <div class="stat"><span class="stat-val" id="statNet">0.0u</span><span class="stat-label">Net</span></div>
         </div>
         <div class="bets-list" id="betsList"></div>
@@ -147,6 +170,9 @@
     </aside>
   </main>
 
+  <!-- Toast notifications -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
   <footer class="app-footer">
     <p>SmartBet Analytics · Final Project · Built with vanilla HTML, CSS &amp; JavaScript</p>
     <p class="disclaimer">For research &amp; education only. Not betting advice.</p>
@@ -154,9 +180,9 @@
 
   <!-- Load order: public config → data source → features → wiring -->
   <script src="js/config.js?v=11"></script>
-  <script src="js/api.js?v=30"></script>
+  <script src="js/api.js?v=31"></script>
   <script src="js/tracker.js?v=15"></script>
   <script src="js/favorites.js?v=15"></script>
-  <script src="js/app.js?v=27"></script>
+  <script src="js/app.js?v=31"></script>
 </body>
 </html>
