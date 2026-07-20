@@ -2,7 +2,7 @@
 
 - What I'm building: 
 
-A tool to help sports better make more informed decisions based on 
+A tool to help sports better make more informed decisions based on analytics.
 
 - Who it's for / why: 
 
