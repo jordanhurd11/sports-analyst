@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bet Journal · SmartBet Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css?v=35" />
+</head>
+<body>
+  <!-- ===== Ambient background FX ===== -->
+  <div class="bg-fx" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <!-- ===== Header ===== -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">▲</span>
+      <div>
+        <h1>Bet Journal</h1>
+        <p class="tagline">Your record. Your bankroll. Your edge.</p>
+      </div>
+    </div>
+    <a href="index.html" class="nav-link">← Dashboard</a>
+  </header>
+
+  <main class="tracker-layout">
+    <!-- ===== Hero stats ===== -->
+    <section class="hero-grid" id="heroGrid">
+      <div class="panel stat-big"><span class="sb-val" id="hBets">0</span><span class="sb-label">Total Bets</span></div>
+      <div class="panel stat-big stat-ring-big">
+        <svg class="ring-big" viewBox="0 0 80 80" aria-hidden="true">
+          <circle class="ring-bg" cx="40" cy="40" r="34"></circle>
+          <circle class="ring-fg" id="heroRing" cx="40" cy="40" r="34"></circle>
+        </svg>
+        <span class="sb-val" id="hWin">0%</span><span class="sb-label">Win Rate</span>
+      </div>
+      <div class="panel stat-big"><span class="sb-val" id="hNet">0u</span><span class="sb-label">Net Units</span></div>
+      <div class="panel stat-big"><span class="sb-val" id="hRoi">0%</span><span class="sb-label">ROI</span></div>
+      <div class="panel stat-big"><span class="sb-val" id="hStreak">—</span><span class="sb-label">Streak</span></div>
+    </section>
+
+    <!-- ===== Charts row ===== -->
+    <section class="charts-grid">
+      <div class="panel">
+        <div class="panel-head"><h2>Bankroll · Net Units Over Time</h2></div>
+        <div id="bankrollChart"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Results</h2></div>
+        <div id="donutChart" class="donut-wrap"></div>
+        <div class="panel-head" style="margin-top:16px"><h2>By Sport</h2></div>
+        <div id="sportBars"></div>
+      </div>
+    </section>
+
+    <!-- ===== Add + log ===== -->
+    <section class="log-grid">
+      <div class="panel">
+        <div class="panel-head"><h2>Add a Bet</h2></div>
+        <form id="betForm" class="bet-form" autocomplete="off">
+          <select id="betSport" class="bet-select">
+            <option>NBA</option><option>NFL</option><option selected>MLB</option>
+            <option>NHL</option><option>EPL</option><option>Other</option>
+          </select>
+          <input id="betPick" type="text" placeholder="Pick (e.g. BOS -4.5)" required maxlength="40" />
+          <div class="bet-form-row">
+            <input id="betOdds" type="number" placeholder="Odds (-110)" required step="1" />
+            <input id="betUnits" type="number" placeholder="Units" required min="0.1" step="0.1" />
+          </div>
+          <button type="submit" class="btn-add">+ Log Bet</button>
+        </form>
+        <button id="csvBtn" class="csv-btn" title="Download your bets as a spreadsheet">⤓ Export CSV</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Bet Log</h2>
+          <span class="pill" id="logCount">0</span>
+        </div>
+        <div class="filters" id="statusFilters">
+          <button class="chip on" data-status="all">All</button>
+          <button class="chip" data-status="pending">Pending</button>
+          <button class="chip" data-status="win">Won</button>
+          <button class="chip" data-status="loss">Lost</button>
+          <button class="chip" data-status="push">Push</button>
+        </div>
+        <div class="bets-list bets-list-full" id="betsList"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast notifications -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <footer class="app-footer">
+    <p>SmartBet Analytics · Bet Journal · Everything stays in your browser</p>
+    <p class="disclaimer">For research &amp; education only. Not betting advice.</p>
+  </footer>
+
+  <script src="js/tracker.js?v=35"></script>
+  <script src="js/mybets.js?v=35"></script>
+</body>
+</html>
