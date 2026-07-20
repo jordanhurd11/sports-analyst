@@ -762,6 +762,39 @@ body {
 }
 .disclaimer { margin-top: 6px; opacity: .6; }
 
+/* ===== One-click bet slip ===== */
+.oc-pair { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.oc-bet {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  font-family: var(--font-mono);
+  background: var(--bg-solid);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 5px 8px;
+  margin-top: 6px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .2s, transform .12s;
+}
+.oc-pair .oc-bet { margin-top: 0; }
+.oc-bet:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+  transform: translateY(-1px);
+}
+.oc-bet:active { transform: translateY(0) scale(.97); }
+
+.bet-form.flash { border-radius: 12px; animation: slipFlash 1.1s ease; }
+@keyframes slipFlash {
+  0%, 55% { box-shadow: 0 0 0 2px var(--accent), 0 0 26px var(--accent-glow); }
+  100%    { box-shadow: none; }
+}
+
 /* ===== Premium polish: ripple, skeletons, toasts, charts ===== */
 
 /* Ripple — JS drops a .ripple span at the click point */

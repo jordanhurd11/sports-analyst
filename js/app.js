@@ -206,7 +206,7 @@ function renderDetail(g) {
     <div class="odds-cell"><div class="oc-label">Spread</div><div class="oc-val">${o.spread}</div></div>
     <div class="odds-cell"><div class="oc-label">Moneyline</div><div class="oc-val" style="font-size:13px">${o.moneyline}</div></div>
     <div class="odds-cell"><div class="oc-label">Total</div><div class="oc-val">${o.total}</div></div>`;
-  document.getElementById("oddsGrid").innerHTML = oddsCells(g.odds);
+  document.getElementById("oddsGrid").innerHTML = betOddsCells(g);
 
   const startSection = document.getElementById("startOddsSection");
   if (g.oddsLive && started) {
@@ -285,6 +285,72 @@ function renderDetail(g) {
     void els.favBtn.offsetWidth;
     els.favBtn.classList.add("pop");
   };
+}
+
+/* ---------- One-click bet slip ---------- */
+// The main odds grid renders each side of a market as a button that
+// pre-fills the bet tracker (pick + odds); the user adds units.
+function betOddsCells(g) {
+  const btn = (pick, odds, label) =>
+    `<button class="oc-bet" data-pick="${pick}" data-odds="${odds}"
+       title="Click to add to your bet tracker">${label}</button>`;
+  const fmt = (p) => (p > 0 ? `+${p}` : `${p}`);
+
+  // Spread: one button (the quoted side), book price when we have it
+  let spread = `<div class="oc-val">—</div>`;
+  if (g.odds.spread !== "—") {
+    spread = btn(g.odds.spread, g.spPrice ?? -110, g.odds.spread);
+  }
+
+  // Moneyline: one button per team
+  let ml = `<div class="oc-val">—</div>`;
+  if (g.mlRaw && g.mlRaw.away != null && g.mlRaw.home != null) {
+    ml = `<div class="oc-pair">
+      ${btn(`${g.away.abbr} ML`, g.mlRaw.away, `${g.away.abbr} ${fmt(g.mlRaw.away)}`)}
+      ${btn(`${g.home.abbr} ML`, g.mlRaw.home, `${g.home.abbr} ${fmt(g.mlRaw.home)}`)}
+    </div>`;
+  } else if (g.odds.moneyline !== "—") {
+    // demo-format string "LAL +160 / BOS -190" → two buttons
+    const m = g.odds.moneyline.match(/^(\S+) ([+-]\d+) \/ (\S+) ([+-]\d+)$/);
+    ml = m
+      ? `<div class="oc-pair">
+           ${btn(`${m[1]} ML`, m[2], `${m[1]} ${m[2]}`)}
+           ${btn(`${m[3]} ML`, m[4], `${m[3]} ${m[4]}`)}
+         </div>`
+      : `<div class="oc-val" style="font-size:13px">${g.odds.moneyline}</div>`;
+  }
+
+  // Total: Over / Under buttons
+  let total = `<div class="oc-val">—</div>`;
+  const pt = g.totRaw ??
+    (g.odds.total.startsWith("O/U ") ? parseFloat(g.odds.total.slice(4)) : null);
+  if (pt != null && !isNaN(pt)) {
+    const matchup = `${g.away.abbr}@${g.home.abbr}`;
+    total = `<div class="oc-pair">
+      ${btn(`${matchup} Over ${pt}`, g.totOverPrice ?? -110, `Over ${pt}`)}
+      ${btn(`${matchup} Under ${pt}`, g.totUnderPrice ?? -110, `Under ${pt}`)}
+    </div>`;
+  }
+
+  return `
+    <div class="odds-cell"><div class="oc-label">Spread</div>${spread}</div>
+    <div class="odds-cell"><div class="oc-label">Moneyline</div>${ml}</div>
+    <div class="odds-cell"><div class="oc-label">Total</div>${total}</div>`;
+}
+
+function initBetSlip() {
+  document.getElementById("oddsGrid").addEventListener("click", (e) => {
+    const b = e.target.closest(".oc-bet");
+    if (!b) return;
+    els.betPick.value = b.dataset.pick;
+    els.betOdds.value = b.dataset.odds;
+    els.betForm.classList.remove("flash");
+    void els.betForm.offsetWidth;   // restart the highlight animation
+    els.betForm.classList.add("flash");
+    els.betForm.scrollIntoView({ behavior: "smooth", block: "center" });
+    els.betUnits.focus({ preventScroll: true });
+    showToast(`${b.dataset.pick} added — enter units to log it`);
+  });
 }
 
 /* ---------- Charts ---------- */
@@ -567,7 +633,7 @@ function initTracker() {
 // One delegated listener: any tap on a button-ish control drops an
 // expanding ripple at the click point (GPU transform only)
 document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".sport-btn, .btn-add, .date-arrow, .bi-btn");
+  const btn = e.target.closest(".sport-btn, .btn-add, .date-arrow, .bi-btn, .oc-bet");
   if (!btn) return;
   const r = btn.getBoundingClientRect();
   const size = Math.max(r.width, r.height);
@@ -610,6 +676,7 @@ function init() {
   renderTracker();
   initAssistant();
   initDateBar();
+  initBetSlip();
   setInterval(pollLive, 60_000);
   selectSport(state.sport);   // load first sport
 }

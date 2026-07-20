@@ -870,12 +870,19 @@ const SportsAPI = (() => {
     const spreads = market("spreads");
     if (spreads) {
       const fav = spreads.outcomes.find((o) => o.point < 0) || spreads.outcomes[0];
-      if (fav && fav.point != null) raw.sp = { name: fav.name, point: fav.point };
+      if (fav && fav.point != null) {
+        raw.sp = { name: fav.name, point: fav.point, price: fav.price };
+      }
     }
     const totals = market("totals");
     if (totals) {
       const over = totals.outcomes.find((o) => o.name === "Over");
-      if (over && over.point != null) raw.tot = over.point;
+      const under = totals.outcomes.find((o) => o.name === "Under");
+      if (over && over.point != null) {
+        raw.tot = over.point;
+        raw.totOverPrice = over.price;
+        raw.totUnderPrice = under?.price;
+      }
     }
     return raw;
   }
@@ -930,9 +937,12 @@ const SportsAPI = (() => {
 
     game.odds = odds;
     game.oddsLive = true;
-    // raw numbers kept for trend math (implied probability, total line)
+    // raw numbers kept for trend math and one-click bet tracking
     game.mlRaw = { away: raw.mlAway ?? null, home: raw.mlHome ?? null };
     game.totRaw = raw.tot ?? null;
+    game.spPrice = raw.sp?.price ?? null;
+    game.totOverPrice = raw.totOverPrice ?? null;
+    game.totUnderPrice = raw.totUnderPrice ?? null;
 
     // Starting (pregame) odds — from the snapshot store
     try {
