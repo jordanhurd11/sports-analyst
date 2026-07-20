@@ -704,6 +704,68 @@ body {
 }
 .btn-add:active { transform: translateY(0) scale(.97); }
 
+/* parlay slip */
+.slip-mode { margin-bottom: 10px; }
+.parlay-legs { display: flex; flex-direction: column; gap: 6px; }
+.pl-leg {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--violet);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  animation: fadeUp .25s ease both;
+}
+.pl-leg button {
+  background: none; border: none; color: var(--text-dim);
+  cursor: pointer; font-size: 12px; margin-left: 6px;
+}
+.pl-leg button:hover { color: var(--danger); }
+.payout-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  min-height: 15px;
+  margin: -2px 0 0;
+}
+.btn-ghost {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border-bright);
+  border-radius: 9px;
+  color: var(--text-dim);
+  padding: 8px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.btn-ghost:hover { color: var(--violet); border-color: var(--violet); }
+
+/* log sections + parlay items */
+.log-sec {
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 600;
+  letter-spacing: .2em; text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 8px 0 2px;
+}
+.bet-item.parlay { border-left-color: var(--violet); }
+.bet-item.parlay.win  { border-left-color: var(--green); }
+.bet-item.parlay.loss { border-left-color: var(--danger); }
+.bi-legs {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.bi-legs em { color: var(--text-dim); font-style: normal; }
+.bi-towin {
+  font-family: var(--font-mono);
+  font-size: 11px; color: var(--text-dim);
+}
+
 .bets-list {
   display: flex; flex-direction: column; gap: 8px;
   margin-top: 12px;

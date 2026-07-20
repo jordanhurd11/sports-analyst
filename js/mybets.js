@@ -22,6 +22,10 @@ const els = {
 };
 
 let statusFilter = "all";
+let slipMode = "single";
+const parlayLegs = [];
+const fmtOdds = (o) => (o > 0 ? `+${o}` : `${o}`);
+const r2 = (n) => Math.round(n * 100) / 100;
 
 function showToast(msg) {
   const el = document.createElement("div");
@@ -160,6 +164,43 @@ function renderSportBars() {
 }
 
 /* ---------- Bet log ---------- */
+function betItemHtml(b) {
+  const p = BetTracker.profit(b);
+  const settled = b.result === "win" || b.result === "loss";
+  const when = new Date(b.ts).toLocaleDateString([], { month: "short", day: "numeric" });
+  const resultBtn = (r, label) =>
+    `<button class="bi-btn ${r} ${b.result === r ? "on" : ""}"
+       data-id="${b.id}" data-result="${r}" title="Mark ${r}">${label}</button>`;
+  const net = settled
+    ? `${p > 0 ? "+" : ""}${r2(p)}u`
+    : b.result === "push" ? "push"
+    : `<span class="bi-towin">to win +${r2(BetTracker.potential(b))}u</span>`;
+  const isParlay = !!b.legs;
+  const title = isParlay ? `${b.legs.length}-Leg Parlay` : b.pick;
+  const oddsLabel = isParlay
+    ? fmtOdds(BetTracker.parlayOdds(b.legs).american)
+    : fmtOdds(b.odds);
+  const legsHtml = isParlay
+    ? `<div class="bi-legs">${b.legs.map((l) =>
+        `<div>· ${l.pick} <em>${fmtOdds(l.odds)}</em></div>`).join("")}</div>`
+    : "";
+  return `
+    <div class="bet-item ${isParlay ? "parlay" : ""} ${b.result}">
+      <div class="bi-top">
+        <span class="bi-pick">${title}</span>
+        <span class="bi-net">${net}</span>
+      </div>
+      ${legsHtml}
+      <div class="bi-bottom">
+        <span class="bi-meta">${when} · ${b.sport} · ${oddsLabel} · ${b.units}u</span>
+        <span class="bi-actions">
+          ${resultBtn("win", "W")}${resultBtn("loss", "L")}${resultBtn("push", "P")}
+          <button class="bi-btn bi-del" data-id="${b.id}" data-del="1" title="Delete">✕</button>
+        </span>
+      </div>
+    </div>`;
+}
+
 function renderLog() {
   const all = BetTracker.list();
   const bets = statusFilter === "all"
@@ -170,28 +211,17 @@ function renderLog() {
       all.length ? "Nothing matches this filter." : "Log your first bet on the left."}</div>`;
     return;
   }
-  const resultBtn = (b, r, label) =>
-    `<button class="bi-btn ${r} ${b.result === r ? "on" : ""}"
-       data-id="${b.id}" data-result="${r}" title="Mark ${r}">${label}</button>`;
-  els.list.innerHTML = bets.map((b) => {
-    const p = BetTracker.profit(b);
-    const settled = b.result === "win" || b.result === "loss";
-    const when = new Date(b.ts).toLocaleDateString([], { month: "short", day: "numeric" });
-    return `
-    <div class="bet-item ${b.result}">
-      <div class="bi-top">
-        <span class="bi-pick">${b.pick}</span>
-        <span class="bi-net">${settled ? (p > 0 ? "+" : "") + (Math.round(p * 100) / 100) + "u" : b.result}</span>
-      </div>
-      <div class="bi-bottom">
-        <span class="bi-meta">${when} · ${b.sport} · ${b.odds > 0 ? "+" : ""}${b.odds} · ${b.units}u</span>
-        <span class="bi-actions">
-          ${resultBtn(b, "win", "W")}${resultBtn(b, "loss", "L")}${resultBtn(b, "push", "P")}
-          <button class="bi-btn bi-del" data-id="${b.id}" data-del="1" title="Delete">✕</button>
-        </span>
-      </div>
-    </div>`;
-  }).join("");
+  const parlays = bets.filter((b) => b.legs);
+  const singles = bets.filter((b) => !b.legs);
+  let html = "";
+  if (parlays.length) {
+    html += `<div class="log-sec">Parlays</div>` + parlays.map(betItemHtml).join("");
+  }
+  if (singles.length) {
+    if (parlays.length) html += `<div class="log-sec">Straight Bets</div>`;
+    html += singles.map(betItemHtml).join("");
+  }
+  els.list.innerHTML = html;
 }
 
 /* ---------- CSV export ---------- */
@@ -199,12 +229,15 @@ function exportCSV() {
   const bets = BetTracker.list();
   if (!bets.length) { showToast("No bets to export yet"); return; }
   const rows = [
-    ["date", "sport", "pick", "odds", "units", "result", "profit_units"],
+    ["date", "type", "sport", "pick", "odds", "units", "result", "profit_units"],
     ...bets.map((b) => [
       new Date(b.ts).toISOString().slice(0, 10),
+      b.legs ? "parlay" : "straight",
       b.sport,
-      `"${b.pick.replaceAll('"', '""')}"`,
-      b.odds, b.units, b.result,
+      `"${(b.legs ? b.legs.map((l) => `${l.pick} ${l.odds}`).join(" + ") : b.pick)
+        .replaceAll('"', '""')}"`,
+      b.legs ? BetTracker.parlayOdds(b.legs).american : b.odds,
+      b.units, b.result,
       Math.round(BetTracker.profit(b) * 100) / 100
     ])
   ];
@@ -226,14 +259,105 @@ function renderAll() {
   renderLog();
 }
 
-els.form.addEventListener("submit", (e) => {
-  e.preventDefault();
+/* ---------- Slip modes (straight / parlay) ---------- */
+function setSlipMode(mode) {
+  slipMode = mode;
+  document.querySelectorAll("#slipMode .chip").forEach((c) =>
+    c.classList.toggle("on", c.dataset.mode === mode));
+  const parlay = mode === "parlay";
+  document.getElementById("addLegBtn").hidden = !parlay;
+  document.getElementById("logBetBtn").textContent = parlay ? "+ Log Parlay" : "+ Log Bet";
+  els.pick.required = !parlay;
+  els.odds.required = !parlay;
+  els.pick.placeholder = parlay ? "Leg (e.g. BOS ML)" : "Pick (e.g. BOS -4.5)";
+  renderParlayLegs();
+}
+
+function renderParlayLegs() {
+  const el = document.getElementById("parlayLegs");
+  el.hidden = slipMode !== "parlay" || !parlayLegs.length;
+  el.innerHTML = parlayLegs.map((l, i) => `
+    <div class="pl-leg">
+      <span>${l.pick}</span>
+      <span>${fmtOdds(l.odds)} <button type="button" data-leg="${i}" title="Remove leg">✕</button></span>
+    </div>`).join("");
+  updatePayoutNote();
+}
+
+function updatePayoutNote() {
+  const note = document.getElementById("payoutNote");
+  const units = parseFloat(els.units.value);
+  if (slipMode === "parlay") {
+    if (parlayLegs.length < 2) {
+      note.textContent = parlayLegs.length
+        ? "Add one more leg to make it a parlay" : "";
+      return;
+    }
+    const { dec, american } = BetTracker.parlayOdds(parlayLegs);
+    const pay = units > 0 ? ` · ${units}u to win +${r2(units * (dec - 1))}u` : "";
+    note.textContent = `${parlayLegs.length} legs · combined ${fmtOdds(american)}${pay}`;
+  } else {
+    const odds = parseInt(els.odds.value, 10);
+    if (!Number.isFinite(odds) || odds === 0 || !(units > 0)) {
+      note.textContent = "";
+      return;
+    }
+    const pay = units * (odds > 0 ? odds / 100 : 100 / Math.abs(odds));
+    note.textContent = `${units}u at ${fmtOdds(odds)} to win +${r2(pay)}u`;
+  }
+}
+
+document.getElementById("slipMode").addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip");
+  if (chip) setSlipMode(chip.dataset.mode);
+});
+document.getElementById("addLegBtn").addEventListener("click", () => {
   const pick = els.pick.value.trim();
   const odds = parseInt(els.odds.value, 10);
+  if (!pick || !Number.isFinite(odds) || odds === 0) {
+    showToast("Enter a pick and its odds first");
+    return;
+  }
+  if (parlayLegs.length >= 10) { showToast("Parlays max out at 10 legs"); return; }
+  parlayLegs.push({ pick, odds });
+  els.pick.value = "";
+  els.odds.value = "";
+  els.pick.focus();
+  renderParlayLegs();
+  showToast(`Leg ${parlayLegs.length} · ${pick}`);
+});
+document.getElementById("parlayLegs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-leg]");
+  if (!btn) return;
+  parlayLegs.splice(Number(btn.dataset.leg), 1);
+  renderParlayLegs();
+});
+[els.odds, els.units].forEach((inp) =>
+  inp.addEventListener("input", updatePayoutNote));
+
+els.form.addEventListener("submit", (e) => {
+  e.preventDefault();
   const units = parseFloat(els.units.value);
+
+  if (slipMode === "parlay") {
+    if (parlayLegs.length < 2) { showToast("A parlay needs at least 2 legs"); return; }
+    if (!(units > 0)) { els.units.focus(); return; }
+    const n = parlayLegs.length;
+    BetTracker.addParlay({ legs: parlayLegs, units });
+    parlayLegs.length = 0;
+    els.form.reset();
+    renderParlayLegs();
+    renderAll();
+    showToast(`${n}-leg parlay logged`);
+    return;
+  }
+
+  const pick = els.pick.value.trim();
+  const odds = parseInt(els.odds.value, 10);
   if (!pick || !Number.isFinite(odds) || odds === 0 || !(units > 0)) return;
   BetTracker.add({ sport: els.sport.value, pick, odds, units });
   els.form.reset();
+  updatePayoutNote();
   renderAll();
   showToast(`Bet logged · ${pick}`);
 });

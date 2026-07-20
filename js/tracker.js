@@ -37,6 +37,39 @@ const BetTracker = (() => {
     save(bets);
   }
 
+  /* ---- Parlay math ----
+     American odds → decimal, multiply across legs, convert back. */
+  function toDecimal(odds) {
+    return odds > 0 ? 1 + odds / 100 : 1 + 100 / Math.abs(odds);
+  }
+
+  function parlayOdds(legs) {
+    const dec = legs.reduce((p, l) => p * toDecimal(l.odds), 1);
+    const american = dec >= 2
+      ? Math.round((dec - 1) * 100)
+      : -Math.round(100 / (dec - 1));
+    return { dec, american };
+  }
+
+  function addParlay({ legs, units }) {
+    const bets = load();
+    bets.unshift({
+      id: "bet-" + Date.now() + "-" + Math.floor(Math.random() * 1e4),
+      sport: "PARLAY",
+      legs: legs.map((l) => ({ pick: l.pick, odds: Math.round(l.odds) })),
+      units: Math.round(units * 10) / 10,
+      result: "pending",
+      ts: Date.now()
+    });
+    save(bets);
+  }
+
+  /* Units won if the bet hits (before it settles) */
+  function potential(bet) {
+    if (bet.legs) return bet.units * (parlayOdds(bet.legs).dec - 1);
+    return bet.units * (bet.odds > 0 ? bet.odds / 100 : 100 / Math.abs(bet.odds));
+  }
+
   function remove(id) {
     save(load().filter((b) => b.id !== id));
   }
@@ -48,9 +81,7 @@ const BetTracker = (() => {
   }
 
   function profit(bet) {
-    if (bet.result === "win") {
-      return bet.units * (bet.odds > 0 ? bet.odds / 100 : 100 / Math.abs(bet.odds));
-    }
+    if (bet.result === "win") return potential(bet);
     if (bet.result === "loss") return -bet.units;
     return 0; // push / pending
   }
@@ -80,5 +111,6 @@ const BetTracker = (() => {
     };
   }
 
-  return { list: load, add, remove, setResult, profit, stats };
+  return { list: load, add, addParlay, remove, setResult,
+           profit, potential, parlayOdds, stats };
 })();

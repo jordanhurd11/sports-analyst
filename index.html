@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=35" />
+  <link rel="stylesheet" href="css/style.css?v=37" />
 </head>
 <body>
   <!-- ===== Ambient background FX ===== -->
@@ -140,13 +140,20 @@
           <h2>Bet Tracker</h2>
           <span class="pill" id="trackerRoi">ROI —</span>
         </div>
+        <div class="filters slip-mode" id="slipMode">
+          <button type="button" class="chip on" data-mode="single">Straight</button>
+          <button type="button" class="chip" data-mode="parlay">Parlay</button>
+        </div>
         <form id="betForm" class="bet-form" autocomplete="off">
+          <div id="parlayLegs" class="parlay-legs" hidden></div>
           <input id="betPick" type="text" placeholder="Pick (e.g. BOS -4.5)" required maxlength="40" />
           <div class="bet-form-row">
             <input id="betOdds" type="number" placeholder="Odds (-110)" required step="1" />
             <input id="betUnits" type="number" placeholder="Units" required min="0.1" step="0.1" />
           </div>
-          <button type="submit" class="btn-add">+ Log Bet</button>
+          <div id="payoutNote" class="payout-note"></div>
+          <button type="button" class="btn-ghost" id="addLegBtn" hidden>+ Add Leg</button>
+          <button type="submit" class="btn-add" id="logBetBtn">+ Log Bet</button>
         </form>
         <div class="stat-row">
           <div class="stat"><span class="stat-val" id="statBets">0</span><span class="stat-label">Bets</span></div>
@@ -185,8 +192,8 @@
   <!-- Load order: public config → data source → features → wiring -->
   <script src="js/config.js?v=11"></script>
   <script src="js/api.js?v=34"></script>
-  <script src="js/tracker.js?v=15"></script>
+  <script src="js/tracker.js?v=37"></script>
   <script src="js/favorites.js?v=15"></script>
-  <script src="js/app.js?v=34"></script>
+  <script src="js/app.js?v=37"></script>
 </body>
 </html>

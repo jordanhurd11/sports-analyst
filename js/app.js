@@ -342,8 +342,14 @@ function initBetSlip() {
   document.getElementById("oddsGrid").addEventListener("click", (e) => {
     const b = e.target.closest(".oc-bet");
     if (!b) return;
+    // parlay mode: odds clicks stack up as legs instead of overwriting
+    if (slipMode === "parlay") {
+      addParlayLeg(b.dataset.pick, parseInt(b.dataset.odds, 10));
+      return;
+    }
     els.betPick.value = b.dataset.pick;
     els.betOdds.value = b.dataset.odds;
+    updatePayoutNote();
     els.betForm.classList.remove("flash");
     void els.betForm.offsetWidth;   // restart the highlight animation
     els.betForm.classList.add("flash");
@@ -557,7 +563,106 @@ function initAssistant() {
   });
 }
 
+/* ---------- Bet slip modes (straight / parlay) ---------- */
+let slipMode = "single";
+const parlayLegs = [];
+const fmtOdds = (o) => (o > 0 ? `+${o}` : `${o}`);
+const r2 = (n) => Math.round(n * 100) / 100;
+
+function setSlipMode(mode) {
+  slipMode = mode;
+  document.querySelectorAll("#slipMode .chip").forEach((c) =>
+    c.classList.toggle("on", c.dataset.mode === mode));
+  const parlay = mode === "parlay";
+  document.getElementById("addLegBtn").hidden = !parlay;
+  document.getElementById("logBetBtn").textContent = parlay ? "+ Log Parlay" : "+ Log Bet";
+  els.betPick.required = !parlay;   // legs are added via the button instead
+  els.betOdds.required = !parlay;
+  els.betPick.placeholder = parlay ? "Leg (e.g. BOS ML)" : "Pick (e.g. BOS -4.5)";
+  renderParlayLegs();
+}
+
+function renderParlayLegs() {
+  const el = document.getElementById("parlayLegs");
+  el.hidden = slipMode !== "parlay" || !parlayLegs.length;
+  el.innerHTML = parlayLegs.map((l, i) => `
+    <div class="pl-leg">
+      <span>${l.pick}</span>
+      <span>${fmtOdds(l.odds)} <button type="button" data-leg="${i}" title="Remove leg">✕</button></span>
+    </div>`).join("");
+  updatePayoutNote();
+}
+
+function addParlayLeg(pick, odds) {
+  if (parlayLegs.length >= 10) { showToast("Parlays max out at 10 legs"); return; }
+  parlayLegs.push({ pick, odds });
+  if (slipMode !== "parlay") setSlipMode("parlay");
+  else renderParlayLegs();
+  showToast(`Leg ${parlayLegs.length} · ${pick}`);
+}
+
+/* Live payout preview under the form: "1u at -110 to win +0.91u" */
+function updatePayoutNote() {
+  const note = document.getElementById("payoutNote");
+  const units = parseFloat(els.betUnits.value);
+  if (slipMode === "parlay") {
+    if (parlayLegs.length < 2) {
+      note.textContent = parlayLegs.length
+        ? "Add one more leg to make it a parlay" : "";
+      return;
+    }
+    const { dec, american } = BetTracker.parlayOdds(parlayLegs);
+    const pay = units > 0 ? ` · ${units}u to win +${r2(units * (dec - 1))}u` : "";
+    note.textContent = `${parlayLegs.length} legs · combined ${fmtOdds(american)}${pay}`;
+  } else {
+    const odds = parseInt(els.betOdds.value, 10);
+    if (!Number.isFinite(odds) || odds === 0 || !(units > 0)) {
+      note.textContent = "";
+      return;
+    }
+    const pay = units * (odds > 0 ? odds / 100 : 100 / Math.abs(odds));
+    note.textContent = `${units}u at ${fmtOdds(odds)} to win +${r2(pay)}u`;
+  }
+}
+
 /* ---------- Bet tracker ---------- */
+/* One bet row — straight or parlay. Pending bets show what they pay. */
+function betItemHtml(b) {
+  const p = BetTracker.profit(b);
+  const settled = b.result === "win" || b.result === "loss";
+  const resultBtn = (r, label) =>
+    `<button class="bi-btn ${r} ${b.result === r ? "on" : ""}"
+             data-id="${b.id}" data-result="${r}" title="Mark ${r}">${label}</button>`;
+  const net = settled
+    ? `${p > 0 ? "+" : ""}${r2(p)}u`
+    : b.result === "push" ? "push"
+    : `<span class="bi-towin">to win +${r2(BetTracker.potential(b))}u</span>`;
+  const isParlay = !!b.legs;
+  const title = isParlay ? `${b.legs.length}-Leg Parlay` : b.pick;
+  const oddsLabel = isParlay
+    ? fmtOdds(BetTracker.parlayOdds(b.legs).american)
+    : fmtOdds(b.odds);
+  const legsHtml = isParlay
+    ? `<div class="bi-legs">${b.legs.map((l) =>
+        `<div>· ${l.pick} <em>${fmtOdds(l.odds)}</em></div>`).join("")}</div>`
+    : "";
+  return `
+    <div class="bet-item ${isParlay ? "parlay" : ""} ${b.result}">
+      <div class="bi-top">
+        <span class="bi-pick">${title}</span>
+        <span class="bi-net">${net}</span>
+      </div>
+      ${legsHtml}
+      <div class="bi-bottom">
+        <span class="bi-meta">${b.sport} · ${oddsLabel} · ${b.units}u</span>
+        <span class="bi-actions">
+          ${resultBtn("win", "W")}${resultBtn("loss", "L")}${resultBtn("push", "P")}
+          <button class="bi-btn bi-del" data-id="${b.id}" data-del="1" title="Delete">✕</button>
+        </span>
+      </div>
+    </div>`;
+}
+
 function renderTracker() {
   const s = BetTracker.stats();
   els.statBets.textContent = s.count;
@@ -577,41 +682,72 @@ function renderTracker() {
       `<div class="placeholder-note">Log your first bet above. Everything stays in your browser.</div>`;
     return;
   }
-  const resultBtn = (b, r, label) =>
-    `<button class="bi-btn ${r} ${b.result === r ? "on" : ""}"
-             data-id="${b.id}" data-result="${r}" title="Mark ${r}">${label}</button>`;
-  els.betsList.innerHTML = bets.map((b) => {
-    const p = BetTracker.profit(b);
-    const settled = b.result === "win" || b.result === "loss";
-    return `
-    <div class="bet-item ${b.result}">
-      <div class="bi-top">
-        <span class="bi-pick">${b.pick}</span>
-        <span class="bi-net">${settled ? (p > 0 ? "+" : "") + (Math.round(p * 100) / 100) + "u" : ""}</span>
-      </div>
-      <div class="bi-bottom">
-        <span class="bi-meta">${b.sport} · ${b.odds > 0 ? "+" : ""}${b.odds} · ${b.units}u</span>
-        <span class="bi-actions">
-          ${resultBtn(b, "win", "W")}${resultBtn(b, "loss", "L")}${resultBtn(b, "push", "P")}
-          <button class="bi-btn bi-del" data-id="${b.id}" data-del="1" title="Delete">✕</button>
-        </span>
-      </div>
-    </div>`;
-  }).join("");
+  const parlays = bets.filter((b) => b.legs);
+  const singles = bets.filter((b) => !b.legs);
+  let html = "";
+  if (parlays.length) {
+    html += `<div class="log-sec">Parlays</div>` + parlays.map(betItemHtml).join("");
+  }
+  if (singles.length) {
+    if (parlays.length) html += `<div class="log-sec">Straight Bets</div>`;
+    html += singles.map(betItemHtml).join("");
+  }
+  els.betsList.innerHTML = html;
 }
 
 function initTracker() {
   els.betForm.addEventListener("submit", (e) => {
     e.preventDefault();
+    const units = parseFloat(els.betUnits.value);
+
+    if (slipMode === "parlay") {
+      if (parlayLegs.length < 2) { showToast("A parlay needs at least 2 legs"); return; }
+      if (!(units > 0)) { els.betUnits.focus(); return; }
+      const n = parlayLegs.length;
+      BetTracker.addParlay({ legs: parlayLegs, units });
+      parlayLegs.length = 0;
+      els.betForm.reset();
+      renderParlayLegs();
+      renderTracker();
+      showToast(`${n}-leg parlay logged`);
+      return;
+    }
+
     const pick = els.betPick.value.trim();
     const odds = parseInt(els.betOdds.value, 10);
-    const units = parseFloat(els.betUnits.value);
     if (!pick || !Number.isFinite(odds) || odds === 0 || !(units > 0)) return;
     BetTracker.add({ sport: state.sport, pick, odds, units });
     els.betForm.reset();
+    updatePayoutNote();
     renderTracker();
     showToast(`Bet logged · ${pick}`);
   });
+
+  // slip mode toggle, manual legs, leg removal, live payout preview
+  document.getElementById("slipMode").addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (chip) setSlipMode(chip.dataset.mode);
+  });
+  document.getElementById("addLegBtn").addEventListener("click", () => {
+    const pick = els.betPick.value.trim();
+    const odds = parseInt(els.betOdds.value, 10);
+    if (!pick || !Number.isFinite(odds) || odds === 0) {
+      showToast("Enter a pick and its odds first");
+      return;
+    }
+    addParlayLeg(pick, odds);
+    els.betPick.value = "";
+    els.betOdds.value = "";
+    els.betPick.focus();
+  });
+  document.getElementById("parlayLegs").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-leg]");
+    if (!btn) return;
+    parlayLegs.splice(Number(btn.dataset.leg), 1);
+    renderParlayLegs();
+  });
+  [els.betOdds, els.betUnits].forEach((inp) =>
+    inp.addEventListener("input", updatePayoutNote));
 
   // one delegated handler for result + delete buttons
   els.betsList.addEventListener("click", (e) => {
