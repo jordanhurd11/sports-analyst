@@ -40,6 +40,12 @@ module.exports = async (req, res) => {
   try {
     const upstream = await fetch(url);
     const body = await upstream.json();
+    // surface the credit balance so the frontend/user can check it
+    const remaining = upstream.headers.get("x-requests-remaining");
+    const used = upstream.headers.get("x-requests-used");
+    if (remaining != null) res.setHeader("x-odds-remaining", remaining);
+    if (used != null) res.setHeader("x-odds-used", used);
+    res.setHeader("Access-Control-Expose-Headers", "x-odds-remaining, x-odds-used");
     // cache hard: odds refresh every 10 min is plenty for a research tool
     res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=1800");
     return res.status(upstream.status).json(body);
