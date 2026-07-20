@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=37" />
+  <link rel="stylesheet" href="css/style.css?v=38" />
 </head>
 <body>
   <!-- ===== Ambient background FX ===== -->
@@ -120,22 +120,28 @@
           </div>
         </div>
 
-        <!-- AI assistant (Gemini via /api/ai) -->
-        <div class="detail-section">
-          <h3>AI Assistant <span class="tag" id="aiTag">gemini</span></h3>
+        <!-- AI analysis module (Gemini via /api/ai) -->
+        <div class="detail-section" id="aiSection">
+          <h3>AI Analyst <span class="tag" id="aiTag">gemini</span></h3>
           <div class="ai-box" id="aiBox"></div>
+          <div class="ai-quick" id="aiQuick">
+            <button type="button" class="chip" data-q="Explain the current betting line and what's driving it.">Explain the line</button>
+            <button type="button" class="chip" data-q="What is the biggest risk factor in this matchup?">Biggest risk</button>
+            <button type="button" class="chip" data-q="What developments would change the outlook of this game?">What changes it?</button>
+          </div>
           <form id="aiForm" class="ai-form" autocomplete="off">
             <input id="aiInput" type="text" maxlength="300"
-                   placeholder="Ask about this matchup — injuries, form, the line…" />
+                   placeholder="Or ask your own question — injuries, form, the line…" />
             <button type="submit" class="btn-add">Ask</button>
           </form>
+          <div class="ai-fresh" id="aiFresh"></div>
         </div>
       </article>
     </section>
 
     <!-- ===== Right: tracker + favorites ===== -->
     <aside class="side-col">
-      <section class="panel">
+      <section class="panel panel-key">
         <div class="panel-head">
           <h2>Bet Tracker</h2>
           <span class="pill" id="trackerRoi">ROI —</span>
@@ -194,6 +200,6 @@
   <script src="js/api.js?v=34"></script>
   <script src="js/tracker.js?v=37"></script>
   <script src="js/favorites.js?v=15"></script>
-  <script src="js/app.js?v=37"></script>
+  <script src="js/app.js?v=38"></script>
 </body>
 </html>

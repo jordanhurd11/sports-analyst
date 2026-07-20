@@ -1095,6 +1095,7 @@ const SportsAPI = (() => {
     computeTrends(sport, game);
 
     game.enriched = true;
+    game.enrichedAt = Date.now();
     return game;
   }
 

@@ -106,6 +106,27 @@ async function selectSport(sport) {
   els.sourceNote.textContent = SportsAPI.getSource();
 }
 
+/* ---------- Team logos (ESPN CDN; hidden gracefully on 404) ---------- */
+const LOGO_LEAGUE = { NBA: "nba", NFL: "nfl", MLB: "mlb", NHL: "nhl" };
+const LOGO_FIX = {
+  NBA: { GSW: "gs", NYK: "ny", SAS: "sa", NOP: "no", UTA: "utah", WAS: "wsh", PHX: "phx" },
+  NFL: { WAS: "wsh", JAX: "jax" },
+  MLB: { CWS: "chw", WSN: "wsh", ATH: "oak" },
+  NHL: { UTAH: "uta" }
+};
+function logoUrl(sport, abbr) {
+  const lg = LOGO_LEAGUE[sport];
+  if (!lg || !abbr) return null;
+  const code = ((LOGO_FIX[sport] || {})[abbr] || abbr).toLowerCase();
+  return `https://a.espncdn.com/i/teamlogos/${lg}/500/${code}.png`;
+}
+function logoImg(sport, abbr, cls) {
+  const url = logoUrl(sport, abbr);
+  return url
+    ? `<img class="${cls}" src="${url}" alt="" loading="lazy" onerror="this.remove()">`
+    : "";
+}
+
 /* ---------- Games list ---------- */
 function renderGamesList(animate = true) {
   // show only the selected date's games; the full two-week window
@@ -130,11 +151,11 @@ function renderGamesList(animate = true) {
          style="--i:${Math.min(idx, 8)}; --away-t:${tint(dc.away.g1, 0.16)}; --home-t:${tint(dc.home.g1, 0.16)}">
       <div class="gc-time">${g.time}</div>
       <div class="gc-row">
-        <span class="gc-team" style="color:${dc.away.font}">${g.away.abbr} ${g.away.name}</span>
+        <span class="gc-team" style="color:${dc.away.font}">${logoImg(state.sport, g.away.abbr, "gc-logo")}${g.away.abbr} ${g.away.name}</span>
         <span class="gc-score">${g.away.score ?? ""}</span>
       </div>
       <div class="gc-row">
-        <span class="gc-team" style="color:${dc.home.font}">${g.home.abbr} ${g.home.name}</span>
+        <span class="gc-team" style="color:${dc.home.font}">${logoImg(state.sport, g.home.abbr, "gc-logo")}${g.home.abbr} ${g.home.name}</span>
         <span class="gc-score">${g.home.score ?? ""}</span>
       </div>
     </div>`;
@@ -175,6 +196,7 @@ function selectGame(id) {
 
 function teamBlock(t) {
   return `
+    ${logoImg(state.sport, t.abbr, "tb-logo")}
     <div class="tb-abbr">${t.abbr}</div>
     <div class="tb-name">${t.name}</div>
     <div class="tb-rec">${t.record}</div>`;
@@ -259,6 +281,11 @@ function renderDetail(g) {
     trCell("Line Movement", tr.line);
 
   renderCharts(g, dc);
+
+  // data freshness stamp under the AI module
+  document.getElementById("aiFresh").textContent = g.enrichedAt
+    ? `data as of ${new Date(g.enrichedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+    : (g.src === "live" ? "loading live data…" : "sample data");
 
   // Quick auto-summary; the form below asks Gemini for a live answer.
   // Words fade in one-by-one via the .ai-word stagger animation.
@@ -388,7 +415,12 @@ function renderCharts(g, dc) {
       ...away.margins.map(Math.abs), ...home.margins.map(Math.abs));
     const teamHtml = (t, team) => `
       <div class="fc-team">
-        <div class="fc-name" style="color:${t.color}">${team.abbr} ${team.name}</div>
+        <div class="fc-name" style="color:${t.color}">${team.abbr} ${team.name}
+          <span class="strk-dots" title="Last 5 games, oldest → newest">
+            ${t.margins.slice(-5).map((m) =>
+              `<i class="strk-dot ${m > 0 ? "w" : m < 0 ? "l" : ""}"></i>`).join("")}
+          </span>
+        </div>
         <div class="fc-bars">
           ${t.margins.map((m, i) => `<div class="fc-bar ${m > 0 ? "win" : "loss"}"
              style="--b:${i}; height:${Math.max(10, Math.round(Math.abs(m) / maxAbs * 100))}%"
@@ -538,6 +570,14 @@ function initAssistant() {
   const tag = document.getElementById("aiTag");
   const proxy = window.SMARTBET_CONFIG?.proxyBase || "";
 
+  // quick-action chips fire a preset question through the same flow
+  document.getElementById("aiQuick").addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip || !state.selected) return;
+    input.value = chip.dataset.q;
+    form.requestSubmit();
+  });
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const question = input.value.trim();
@@ -625,6 +665,32 @@ function updatePayoutNote() {
   }
 }
 
+/* Count a stat toward its new value over ~240ms, then pop it */
+function countTo(el, text) {
+  const m = String(text).match(/-?\d+(\.\d+)?/);
+  if (!m) { el.textContent = text; return; }
+  const target = parseFloat(m[0]);
+  const prev = parseFloat(el.dataset.v ?? "0");
+  el.dataset.v = target;
+  if (el._countIv) clearInterval(el._countIv);
+  if (prev === target) { el.textContent = text; return; }
+  let i = 0;
+  const steps = 6;
+  el._countIv = setInterval(() => {
+    i++;
+    if (i >= steps) {
+      el.textContent = text;
+      clearInterval(el._countIv);
+      el.classList.remove("bump");
+      void el.offsetWidth;
+      el.classList.add("bump");
+      return;
+    }
+    const val = prev + (target - prev) * (i / steps);
+    el.textContent = String(text).replace(m[0], `${Math.round(val * 10) / 10}`);
+  }, 40);
+}
+
 /* ---------- Bet tracker ---------- */
 /* One bet row — straight or parlay. Pending bets show what they pay. */
 function betItemHtml(b) {
@@ -665,12 +731,12 @@ function betItemHtml(b) {
 
 function renderTracker() {
   const s = BetTracker.stats();
-  els.statBets.textContent = s.count;
-  els.statWin.textContent = `${s.winPct}%`;
+  countTo(els.statBets, `${s.count}`);
+  countTo(els.statWin, `${s.winPct}%`);
   // animated progress ring around the win rate (circumference 119.4)
   const ring = document.getElementById("winRing");
   if (ring) ring.style.strokeDashoffset = 119.4 * (1 - s.winPct / 100);
-  els.statNet.textContent = `${s.netUnits > 0 ? "+" : ""}${s.netUnits}u`;
+  countTo(els.statNet, `${s.netUnits > 0 ? "+" : ""}${s.netUnits}u`);
   els.statNet.style.color =
     s.netUnits > 0 ? "var(--green)" : s.netUnits < 0 ? "var(--danger)" : "";
   els.trackerRoi.textContent =
