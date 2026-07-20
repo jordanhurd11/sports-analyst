@@ -247,12 +247,12 @@ const SportsAPI = (() => {
   /* Empty placeholders until Phases 3 & 5 fill them from real data */
   function placeholderExtras() {
     return {
-      odds: { spread: "—", moneyline: "— (Phase 5)", total: "—" },
+      odds: { spread: "—", moneyline: "—", total: "—" },
       teamInfo: {
         last5:    { away: "—", home: "—" },
         homeAway: { away: "—", home: "—" },
         streak:   { away: "—", home: "—" },
-        rank:     { away: "— (Phase 3)", home: "— (Phase 3)" }
+        rank:     { away: "—", home: "—" }
       },
       injuries: [],
       trends: { ats: "—", ou: "—", public: "—", line: "—" }

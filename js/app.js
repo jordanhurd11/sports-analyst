@@ -260,12 +260,12 @@ function renderDetail(g) {
 
   renderCharts(g, dc);
 
-  // AI placeholder (Phase 6 replaces with real generated text).
+  // Quick auto-summary; the form below asks Gemini for a live answer.
   // Words fade in one-by-one via the .ai-word stagger animation.
   const aiText =
     `${g.home.name} (${g.home.record}) enter on ${ti.streak.home} with a strong ` +
     `home split (${ti.homeAway.home}). Key watch: injuries above and the line ` +
-    `move "${tr.line}". This is a demo summary — Phase 6 wires the live AI assistant.`;
+    `move "${tr.line}". Ask a question below for a live AI breakdown.`;
   document.getElementById("aiBox").innerHTML =
     `<strong>${g.home.abbr} favored by the market.</strong> ` +
     aiText.split(" ")
