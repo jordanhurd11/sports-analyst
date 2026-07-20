@@ -344,18 +344,17 @@ body {
   transition: left .5s ease;
   pointer-events: none;
 }
-.game-card { border-left: 3px solid transparent; }
 .game-card:hover {
   border-color: var(--border-bright);
-  border-left-color: var(--accent);
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0,0,0,.30);
+  box-shadow: inset 3px 0 0 var(--accent), 0 6px 18px rgba(0,0,0,.30);
 }
 .game-card:hover::after { left: 120%; }
 .game-card.active {
   border-color: var(--accent);
-  border-left: 3px solid var(--accent);
-  box-shadow: 0 0 0 1px var(--accent) inset, 0 0 22px rgba(0,229,255,.14);
+  box-shadow: inset 3px 0 0 var(--accent),
+              0 0 0 1px var(--accent) inset,
+              0 0 22px rgba(0,229,255,.14);
 }
 /* live games float above the rest: soft red aura */
 .game-card.live {
