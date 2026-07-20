@@ -106,27 +106,6 @@ async function selectSport(sport) {
   els.sourceNote.textContent = SportsAPI.getSource();
 }
 
-/* ---------- Team logos (ESPN CDN; hidden gracefully on 404) ---------- */
-const LOGO_LEAGUE = { NBA: "nba", NFL: "nfl", MLB: "mlb", NHL: "nhl" };
-const LOGO_FIX = {
-  NBA: { GSW: "gs", NYK: "ny", SAS: "sa", NOP: "no", UTA: "utah", WAS: "wsh", PHX: "phx" },
-  NFL: { WAS: "wsh", JAX: "jax" },
-  MLB: { CWS: "chw", WSN: "wsh", ATH: "oak" },
-  NHL: { UTAH: "uta" }
-};
-function logoUrl(sport, abbr) {
-  const lg = LOGO_LEAGUE[sport];
-  if (!lg || !abbr) return null;
-  const code = ((LOGO_FIX[sport] || {})[abbr] || abbr).toLowerCase();
-  return `https://a.espncdn.com/i/teamlogos/${lg}/500/${code}.png`;
-}
-function logoImg(sport, abbr, cls) {
-  const url = logoUrl(sport, abbr);
-  return url
-    ? `<img class="${cls}" src="${url}" alt="" loading="lazy" onerror="this.remove()">`
-    : "";
-}
-
 /* ---------- Games list ---------- */
 function renderGamesList(animate = true) {
   // show only the selected date's games; the full two-week window
@@ -151,11 +130,11 @@ function renderGamesList(animate = true) {
          style="--i:${Math.min(idx, 8)}; --away-t:${tint(dc.away.g1, 0.16)}; --home-t:${tint(dc.home.g1, 0.16)}">
       <div class="gc-time">${g.time}</div>
       <div class="gc-row">
-        <span class="gc-team" style="color:${dc.away.font}">${logoImg(state.sport, g.away.abbr, "gc-logo")}${g.away.abbr} ${g.away.name}</span>
+        <span class="gc-team" style="color:${dc.away.font}">${g.away.abbr} ${g.away.name}</span>
         <span class="gc-score">${g.away.score ?? ""}</span>
       </div>
       <div class="gc-row">
-        <span class="gc-team" style="color:${dc.home.font}">${logoImg(state.sport, g.home.abbr, "gc-logo")}${g.home.abbr} ${g.home.name}</span>
+        <span class="gc-team" style="color:${dc.home.font}">${g.home.abbr} ${g.home.name}</span>
         <span class="gc-score">${g.home.score ?? ""}</span>
       </div>
     </div>`;
@@ -196,7 +175,6 @@ function selectGame(id) {
 
 function teamBlock(t) {
   return `
-    ${logoImg(state.sport, t.abbr, "tb-logo")}
     <div class="tb-abbr">${t.abbr}</div>
     <div class="tb-name">${t.name}</div>
     <div class="tb-rec">${t.record}</div>`;
