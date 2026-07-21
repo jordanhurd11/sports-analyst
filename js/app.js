@@ -548,12 +548,13 @@ function initAssistant() {
   const tag = document.getElementById("aiTag");
   const proxy = window.SMARTBET_CONFIG?.proxyBase || "";
 
-  // quick-action chips fire a preset question through the same flow
+  // quick-action chips only pre-fill the question — the user reviews
+  // it (or edits it) and presses Ask to send
   document.getElementById("aiQuick").addEventListener("click", (e) => {
     const chip = e.target.closest(".chip");
-    if (!chip || !state.selected) return;
+    if (!chip) return;
     input.value = chip.dataset.q;
-    form.requestSubmit();
+    input.focus();
   });
 
   form.addEventListener("submit", async (e) => {
