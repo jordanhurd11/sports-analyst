@@ -250,12 +250,22 @@ function renderDetail(g) {
   const trCell = (label, val) =>
     `<div class="trend-cell"><div class="tc-label">${label}</div><div class="tc-val">${val}</div></div>`;
   // For live games these are computed over the last 14 days of finals
-  // plus market math; demo games keep their sample text
+  // plus market math; demo games keep their sample text.
+  // Values shaped "AWAY … · HOME …" get team-colored halves.
   const liveTrends = g.src === "live";
+  const colorSides = (val) => {
+    if (typeof val !== "string" || !val.includes(" · ")) return val;
+    const [a, h] = val.split(" · ");
+    if (a.startsWith(g.away.abbr) && h.startsWith(g.home.abbr)) {
+      return `<span style="color:${dc.away.font}">${a}</span> · ` +
+             `<span style="color:${dc.home.font}">${h}</span>`;
+    }
+    return val;
+  };
   document.getElementById("trendsGrid").innerHTML =
-    trCell(liveTrends ? "Avg Win/Loss Margin · Last 14 Days" : "Against the Spread", tr.ats) +
+    trCell(liveTrends ? "Avg Win/Loss Margin · Last 14 Days" : "Against the Spread", colorSides(tr.ats)) +
     trCell(liveTrends ? "Avg Combined Score · Last 14 Days" : "Over / Under", tr.ou) +
-    trCell(liveTrends ? "Implied Win % · Live Line" : "Public Betting", tr.public) +
+    trCell(liveTrends ? "Implied Win % · Live Line" : "Public Betting", colorSides(tr.public)) +
     trCell("Line Movement", tr.line);
 
   renderCharts(g, dc);
