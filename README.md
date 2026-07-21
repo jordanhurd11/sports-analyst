@@ -81,25 +81,6 @@ breaking.
 | `api/odds.js`  | The Odds API                   | `ODDS_KEY`   |
 | `api/ai.js`    | Google Gemini                  | `GEMINI_KEY` |
 
-### Deploying your own copy
-1. Fork/push this repo to GitHub.
-2. On **vercel.com** (free): Add New → Project → import the repo →
-   preset **Other** → Deploy.
-3. Settings → Environment Variables → add `BDL_KEY`
-   (app.balldontlie.io), `ODDS_KEY` (the-odds-api.com), and `GEMINI_KEY`
-   (aistudio.google.com/apikey) → Redeploy.
-
-## Run locally
-
-Open `index.html` directly (runs in demo mode), or serve the folder:
-
-```
-python -m http.server 8000
-```
-
-Live data requires the Vercel proxy — point `proxyBase` in `js/config.js`
-at a deployed instance, e.g. `https://sports-analyst-three.vercel.app/api`.
-
 ## Build history
 
 Built in phases with AI pair-programming (see commit history): layout shell →
