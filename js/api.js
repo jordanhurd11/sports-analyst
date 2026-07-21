@@ -723,7 +723,7 @@ const SportsAPI = (() => {
     ]
   };
 
-  const SPORTS = ["NBA", "NFL", "MLB", "NHL", "EPL"];
+  const SPORTS = ["MLB", "NBA", "NFL", "NHL", "EPL"];
 
   /* =================================================================
      PHASE 3 — ENRICHMENT (ESPN standings + injuries via our proxy)
